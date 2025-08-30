@@ -33,7 +33,6 @@ describe("Poseidon2", async function () {
     console.log({poseidon2ContractAddress})
     const byteCodeAtPoseidon2 = await publicClient.getCode({address:poseidon2ContractAddress})
     assert(byteCodeAtPoseidon2 !== undefined, "Poseidon2 does not have byte code at that address, deployment failed")
-    const poseidon2Yul = viem.getContractAt("Poseidon2Yul",poseidon2ContractAddress)
     
     const testPoseidon = await viem.deployContract("testPoseidon")
     const preImg:[bigint, bigint] = [1n,2n]
