@@ -7,7 +7,7 @@
   "author": "Jim Jim Valkema",
   "license": "MIT",
   "dependencies": {
-    "viem": "2.37.1"
+    "viem": "^2.30.0"
   },
   "type": "module"
 }

@@ -5,7 +5,8 @@
   "repository": "https://github.com/warptoad/giga-bridge/packages/giga-bridge-contracts",
   "author": "Jim Jim Valkema",
   "license": "MIT",
-  "devDependencies": {
+  "type": "module",
+ "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",
     "@nomicfoundation/hardhat-ignition-viem": "^3.0.0",
     "@nomicfoundation/hardhat-keystore": "^3.0.0",
@@ -16,13 +17,12 @@
     "@nomicfoundation/hardhat-viem": "^3.0.0",
     "@nomicfoundation/hardhat-viem-assertions": "^3.0.0",
     "@nomicfoundation/ignition-core": "^3.0.0",
-    "@types/node": "^22.18.0",
+    "@types/node": "^22.8.5",
     "forge-std": "foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.0.3",
     "typescript": "~5.8.0",
-    "viem": "2.37.1"
+    "viem": "^2.30.0"
   },
-  "type": "module",
   "dependencies": {
     "@zkpassport/poseidon2": "^0.6.2",
     "poseidon2-evm": "1.0.0",

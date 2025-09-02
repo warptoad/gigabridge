@@ -5,7 +5,7 @@
       "module": "Node18",
       "esModuleInterop": true,
       "forceConsistentCasingInFileNames": true,
-      "strict": true,
+      "strict": false,
       "skipLibCheck": true,
       "resolveJsonModule": true
     }

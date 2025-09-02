@@ -8,11 +8,14 @@ import { network } from "hardhat";
 import Poseidon2HuffArtifacts from "../huff_artifacts/NODE_MODULES/POSEIDON2-EVM/SRC/HUFF/POSEIDON2.HUFF.json" with {type: "json"}
 const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 
-import { getContractAddress, Hex, PublicClient, WalletClient } from "viem";
+import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json" with {type: "json"}
+
+import { getContract, getContractAddress, Hex, PublicClient, WalletClient } from "viem";
 import { create2Proxy } from "../../giga-bridge-js/src/create2Proxy.js";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 import { compileHuff } from "../scripts/deploy/compileHuff.js";
 import { deployPoseidon2Huff } from "../../giga-bridge-js/src/deployPoseidon2.js";
+
 
 describe("Poseidon2", async function () {
   const { viem } = await network.connect();
@@ -30,10 +33,13 @@ describe("Poseidon2", async function () {
     const byteCodeAtPoseidon2 = await publicClient.getCode({address:poseidon2ContractAddress})
     assert(byteCodeAtPoseidon2 !== undefined, "Poseidon2 does not have byte code at that address, deployment failed")
     
-    const testPoseidon = await viem.deployContract("testPoseidon")
+    const testPoseidon = await viem.deployContract("testPoseidon") 
     const preImg:[bigint, bigint] = [1n,2n]
+    //@ts-ignore fucking hardhat man
     const hashTx1 = await publicClient.getTransactionReceipt({hash:await testPoseidon.write.hashPayable([preImg])})
+    //@ts-ignore fucking hardhat man
     const hashTx2 = await publicClient.getTransactionReceipt({hash:await testPoseidon.write.hashPayable([preImg])})
+    //@ts-ignore fucking hardhat man
     const hashPoseidonYul = await testPoseidon.read.hash([preImg])
     const poseidon2Js = poseidon2Hash([1n,2n])
     console.log({poseidon2Js, hashPoseidonYul, gasUsed:hashTx2.gasUsed, poseidon2ContractAddress})
