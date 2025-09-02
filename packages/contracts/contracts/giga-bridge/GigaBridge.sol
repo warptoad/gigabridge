@@ -108,7 +108,7 @@ contract GigaBridge {
         uint256 _root = 69696969696969696996;
         uint256 _depth = 6969696969696969699;
         emit NewRoot(_root,  _depth,  RootType.SYNC_ROOT);
-        emit NewSyncTree(_leafsValues, _leafsIndexes);
+        emit NewSyncTree(_leafsValues, _leafsIndexes, block.number);
     }
 
     // @TODO _pendingLeafs should include indexes, since leaf values are not always unique, it means we cannot use _getIndexOfHistoricLeafValue to get the index!!
