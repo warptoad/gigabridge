@@ -1,0 +1,13 @@
+{
+  "name": "giga-bridge-js",
+  "version": "0.0.0",
+  "description": "A viem js library to interact with the giga-bridge and it's adapters",
+  "main": "index.js",
+  "repository": "https://github.com/warptoad/giga-bridge/tree/main/packages/giga-bridge-js",
+  "author": "Jim Jim Valkema",
+  "license": "MIT",
+  "dependencies": {
+    "viem": "2.37.1"
+  },
+  "type": "module"
+}

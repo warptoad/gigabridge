@@ -8,11 +8,11 @@ import { network } from "hardhat";
 import Poseidon2HuffArtifacts from "../huff_artifacts/NODE_MODULES/POSEIDON2-EVM/SRC/HUFF/POSEIDON2.HUFF.json" with {type: "json"}
 const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 
-import { getContractAddress, Hex } from "viem";
-import { create2Proxy } from "../scripts/deploy/create2Proxy.js";
+import { getContractAddress, Hex, PublicClient, WalletClient } from "viem";
+import { create2Proxy } from "../../giga-bridge-js/src/create2Proxy.js";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 import { compileHuff } from "../scripts/deploy/compileHuff.js";
-import { deployPoseidon2Huff } from "../scripts/deploy/deployPoseidon2.js";
+import { deployPoseidon2Huff } from "../../giga-bridge-js/src/deployPoseidon2.js";
 
 describe("Poseidon2", async function () {
   const { viem } = await network.connect();
@@ -21,7 +21,8 @@ describe("Poseidon2", async function () {
   it("Should deploy poseidon and successfully hashes something using Poseidon2Yul", async function () {
     const [deployer, alice,bob] = await viem.getWalletClients()
     const salt: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000"
-    const { fundOneTimeAddressTx, proxyDeployTx, poseidon2DeployTx } = await deployPoseidon2Huff(publicClient, deployer,salt)
+    // TODO hardhat get messy with types here because of optimism support 
+    const { fundOneTimeAddressTx, proxyDeployTx, poseidon2DeployTx } = await deployPoseidon2Huff(publicClient as any as PublicClient, deployer as WalletClient, salt)
     const poseidon2ContractAddress = getContractAddress({bytecode:"0x"+Poseidon2HuffByteCode as Hex, opcode:"CREATE2", from:create2Proxy.address, salt: salt})
     // yul recompile
     // await deployer.sendTransaction({data:salt+Poseidon2Yul.bytecode.slice(2) as Hex, to:create2Proxy.address})
