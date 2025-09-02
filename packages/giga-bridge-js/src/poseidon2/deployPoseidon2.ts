@@ -1,4 +1,4 @@
-import { getContractAddress, Hex, PublicClient, TestClient, WalletClient } from "viem"
+import { ByteArray, getContractAddress, Hex, PublicClient, TestClient, WalletClient } from "viem"
 import { create2Proxy } from "./create2Proxy.js"
 import Poseidon2HuffByteCode from "./poseidon2HuffByteCode.json" with {type: "json"}
 
@@ -7,18 +7,18 @@ export async function deployPoseidon2Huff(publicClient: PublicClient, deployer: 
     let fundOneTimeAddressTx;
     let proxyDeployTx;
     if (proxyExist === false) {
+        //@ts-ignore idk how to fix it, it some how requires kzg blob field. what??
         fundOneTimeAddressTx = await deployer.sendTransaction({
-            to: create2Proxy.from, value: create2Proxy.gas,
-            account: null, //(await deployer.getAddresses())[0],
-            chain: undefined //await publicClient.getChainId()
+            to: create2Proxy.from, 
+            value: create2Proxy.gas
         })
         proxyDeployTx = deployer.sendRawTransaction({ serializedTransaction: create2Proxy.tx })
     }
     //huff
+     //@ts-ignore idk how to fix it, it some how requires kzg blob field. what??
     const poseidon2DeployTx = await deployer.sendTransaction({
-        data: salt + Poseidon2HuffByteCode.slice(2) as Hex, to: create2Proxy.address,
-        account: null,
-        chain: undefined
+        data: salt + Poseidon2HuffByteCode.slice(2) as Hex, 
+        to: create2Proxy.address,
     })
 
     return { fundOneTimeAddressTx, proxyDeployTx, poseidon2DeployTx }

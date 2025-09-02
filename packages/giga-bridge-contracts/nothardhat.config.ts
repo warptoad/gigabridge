@@ -1,5 +1,4 @@
 import type { HardhatUserConfig } from "hardhat/config";
-
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable } from "hardhat/config";
 
@@ -9,6 +8,13 @@ const config: HardhatUserConfig = {
     profiles: {
       default: {
         version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+
       },
       production: {
         version: "0.8.28",
@@ -20,6 +26,9 @@ const config: HardhatUserConfig = {
         },
       },
     },
+    npmFilesToBuild: [
+      "poseidon2-evm/src/Poseidon2Yul.sol"
+    ],
   },
   networks: {
     hardhatMainnet: {
@@ -37,6 +46,11 @@ const config: HardhatUserConfig = {
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
   },
+  paths: {
+    sources:[
+      "./contracts",
+    ]
+  }
 };
 
 export default config;

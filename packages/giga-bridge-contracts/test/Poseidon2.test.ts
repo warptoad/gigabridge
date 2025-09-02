@@ -11,10 +11,10 @@ const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json" with {type: "json"}
 
 import { getContract, getContractAddress, Hex, PublicClient, WalletClient } from "viem";
-import { create2Proxy } from "../../giga-bridge-js/src/create2Proxy.js";
+import { create2Proxy } from "../../giga-bridge-js/src/poseidon2/create2Proxy.ts";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 import { compileHuff } from "../scripts/deploy/compileHuff.js";
-import { deployPoseidon2Huff } from "../../giga-bridge-js/src/deployPoseidon2.js";
+import { deployPoseidon2Huff } from "../../giga-bridge-js/src/poseidon2/deployPoseidon2.js";
 
 
 describe("Poseidon2", async function () {
