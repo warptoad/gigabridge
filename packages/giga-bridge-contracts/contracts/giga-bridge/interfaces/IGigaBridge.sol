@@ -9,7 +9,7 @@ interface IGigaBridge {
     }
 
     struct SyncTreeData {
-        uint256 nextLeafIndex;
+        uint256 prevLeafIndex;
         uint256 nextPendingLeafsIndex;
         uint256 pendingLeafIndexLength;
         uint256 creationBlock;

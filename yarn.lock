@@ -797,7 +797,7 @@
 
 "@zkpassport/poseidon2@^0.6.2":
   version "0.6.2"
-  resolved "https://registry.npmjs.org/@zkpassport/poseidon2/-/poseidon2-0.6.2.tgz"
+  resolved "https://registry.yarnpkg.com/@zkpassport/poseidon2/-/poseidon2-0.6.2.tgz#2dd865864f1afd25169b63d64eb89a634f91301a"
   integrity sha512-6sFHX9kAcrmDmBEEndvjZ8DA9FomunirQ5oCV6oD7bqr/lP0n0OBSRn86SZgQBXwRR+vq7sk16y31OgRBIOJ5Q==
 
 abitype@1.1.0, abitype@^1.0.9:

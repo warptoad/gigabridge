@@ -10,16 +10,16 @@ const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 
 import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json" with {type: "json"}
 
-import { getContract, getContractAddress, Hex, PublicClient, WalletClient } from "viem";
+import { getContract, getContractAddress, Hex, parseEventLogs, PublicClient, toHex, WalletClient } from "viem";
 import { create2Proxy } from "../../giga-bridge-js/src/poseidon2/create2Proxy.ts";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 import { compileHuff } from "../scripts/deploy/compileHuff.js";
-import { deployPoseidon2Huff } from "../../giga-bridge-js/src/poseidon2/deployPoseidon2.js";
+import { deployPoseidon2HuffWithInterface } from "../../giga-bridge-js/src/poseidon2/deployPoseidon2.js";
 import { GigaBridge$Type } from "../artifacts/contracts/giga-bridge/GigaBridge.sol/artifacts.js";
 import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
 import GigaBridgeArtifact from "../artifacts/contracts/giga-bridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 import {getSyncTree} from "../../giga-bridge-js/src/gigaBridge.ts"
-
+const expectedPoseidon2HuffWithInterfaceAddress = "0x5308AdF8a2B46dfe32a00503adD831174586FC16" // this is also hardcoded in LazyIMTPoseidon2 thats why
 
 describe("Poseidon2", async function () {
     const { viem } = await network.connect();
@@ -27,7 +27,10 @@ describe("Poseidon2", async function () {
 
     beforeEach(async () => {
         const [deployer] = await viem.getWalletClients()
-        const { fundOneTimeAddressTx, proxyDeployTx, poseidon2DeployTx } = await deployPoseidon2Huff(publicClient, deployer, "0x0000000000000000000000000000000000000000000000000000000000000000")
+        const salt = "0x0000000000000000000000000000000000000000000000000000000000000000"
+        const {addresses:{poseidon2HuffWithInterfaceAddress}} = await deployPoseidon2HuffWithInterface(publicClient as any as PublicClient, deployer as WalletClient, salt, salt)
+        console.log({poseidon2HuffWithInterfaceAddress})
+        assert.equal(poseidon2HuffWithInterfaceAddress, expectedPoseidon2HuffWithInterfaceAddress, "poseidon2HuffWithInterfaceAddress not equal to expected value that is hardcoded in LazyImtPoseidon2.sol")
 
     })
     it("Should deploy gigaBridge", async function () {
@@ -37,27 +40,39 @@ describe("Poseidon2", async function () {
         const aliceAddress = (await alice.getAddresses())[0]
         
         const gigaBridgeAlice = getContract({abi:gigaBridgeDeployer.abi, address:gigaBridgeDeployer.address, client:{wallet:alice, public:publicClient}})
-        console.log({aliceAddress})
-        
-        let txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 69n])
-        
+
+        let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+
+        let txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 0n])
+        gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 1n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 2n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 3n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 5n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 6n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 7n])
+        // txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4207n])
+        //txHash = await gigaBridgeAlice.write.updateLeaf([420420n, 1n])
+
         const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
-        console.log({updaterAddress})
+        gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+
         
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 420n])
-        console.log({txHash})
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4201n])
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4202n])
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4203n])
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4204n])
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4205n])
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4206n])
-        txHash = await gigaBridgeAlice.write.updateLeaf([420420n, 1n])
+        const createSyncTreeTxHash = await gigaBridgeAlice.write.createPendingSyncTree([0n, [1n, 4n, 5n, 7n], [1n, 4n, 5n, 7n]])
         
-        const createSyncTreeTxHash = await gigaBridgeAlice.write.createPendingSyncTree([0n, [69n,4201n, 4202n,4203n, 4206n], [0n,2n,3n,4n,7n]])
-        
-        txHash = await gigaBridgeAlice.write.processSyncTree([0n, 10n])
-        console.log({gigaBridgeAlice: gigaBridgeAlice.address})
+        let processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 3000n]) 
+        // processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 2n])
+        // processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 100n])
+
+        const processSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: processSyncTreeTxHash });
+        const argsNewRootEvent = (parseEventLogs({
+            abi: GigaBridgeArtifact.abi,
+            eventName: 'NewRoot',
+            logs: processSyncTreeTxReceipt.logs,
+        })[0] as any).args
+
         const syncTree = await getSyncTree(createSyncTreeTxHash,publicClient,gigaBridgeAlice.address)
         console.log({syncTree})
     })

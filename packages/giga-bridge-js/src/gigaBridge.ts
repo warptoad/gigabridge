@@ -1,5 +1,6 @@
 
-import { IMT } from "@zk-kit/imt"
+import { IMT, IMTHashFunction, IMTNode } from "@zk-kit/imt"
+import { poseidon2Hash } from "@zkpassport/poseidon2"
 import GigaBridgeArtifact from "../../giga-bridge-contracts/artifacts/contracts/giga-bridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 import { IGigaBridge$Type } from "../../giga-bridge-contracts/artifacts/contracts/giga-bridge/interfaces/IGigaBridge.sol/artifacts.ts"
 import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem } from "viem";
@@ -14,11 +15,11 @@ type NewSyncTreeEvent = ParseEventLogsParameters<typeof GigaBridgeArtifact.abi, 
 export async function getSyncTree(txHash: Hash, publicClient: PublicClient, gigaBridgeAddress = GIGA_BRIDGE_ADDRESS) {
     // TODO complain that this doesn't work
     // const latestBlock = await publicClient.getBlockNumber();
-    // const gigaBridge = getContract({
-    //     abi: GigaBridgeArtifact.abi,
-    //     client: { public: publicClient, wallet: undefined },
-    //     address: gigaBridgeAddress,
-    // })
+    const gigaBridge = getContract({
+        abi: GigaBridgeArtifact.abi,
+        client: { public: publicClient, wallet: undefined },
+        address: gigaBridgeAddress,
+    })
     // const events = await gigaBridge.getEvents.LeafRegistered({ fromBlock: 0n, toBlock: latestBlock })
     // console.log({events})
 
@@ -41,6 +42,11 @@ export async function getSyncTree(txHash: Hash, publicClient: PublicClient, giga
         syncTreeLeafs.push(leafValues[i])
         prevLeafIndex = leafIndexes[i]
     }
-    console.log({syncTreeLeafs})
-    return syncTreeLeafs
+    const depth = Math.ceil(Math.log2(syncTreeLeafs.length))
+    const hashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
+    const tree = new IMT(hashFunc, depth, 0n, 2, syncTreeLeafs)
+    const root = tree.root
+    const isRoot = await gigaBridge.read.rootHistory([root])
+    console.log({isRoot})
+    return tree
 }

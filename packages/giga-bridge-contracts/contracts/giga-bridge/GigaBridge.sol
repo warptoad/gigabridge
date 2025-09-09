@@ -28,6 +28,7 @@ contract GigaBridge is IGigaBridge {
 
     constructor(uint8 _maxDepth){
         LazyImtPoseidon2.init(gigaTree, _maxDepth);
+        gigaRoot = LazyImtPoseidon2.root(gigaTree);
     }
 
     function registerNewLeaf(address _owner, address _updater, uint256 _value) public override returns (uint256, uint256) {        
@@ -96,14 +97,14 @@ contract GigaBridge is IGigaBridge {
         }
         SyncTreeData storage syncTreeData = syncTreesData[_syncTreeIndex];
         uint256 amountLeafs = _leafsIndexes[_leafsIndexes.length - 1] + 1; // because _leafsIndexes is sorted, the last index is also the largest index!
-        LazyImtPoseidon2.init(syncTree, uint8(_calculateDepth(amountLeafs)));
+        LazyImtPoseidon2.init(syncTree, uint8(_calculateDepth(amountLeafs)) + 1); //TODO figure out why this needs +1? i guess it doesn't matter if this number is too large. But too small is bad! we can just hardcode 32 and not worry about it and just switch to leanIMT which is more based any way!! Yay!!!
 
         uint256 prevLeafIndex = 0;
         for (uint256 i = 0; i < _leafsValues.length; i++) {
             if (i > 0 && _leafsIndexes[i] <= prevLeafIndex) {
-                revert("_leafsIndexes must be sorted in ascending order");
+                revert("_leafsIndexes must be sorted in ascending order with no duplicates.");
             }
-            require(leafHistory[_leafsIndexes[i]][_leafsValues[i]], "_leafsValues contains a leaf that has never existed at that index with no duplicates");
+            require(leafHistory[_leafsIndexes[i]][_leafsValues[i]] , "_leafsValues contains a leaf that has never existed.");
             syncTreesPendingLeafs[_syncTreeIndex][i] = PendingLeaf({
                 value: _leafsValues[i],
                 // _getIndexOfHistoricLeafValue also errors if its not a valid value
@@ -113,6 +114,7 @@ contract GigaBridge is IGigaBridge {
         }
         syncTreeData.pendingLeafIndexLength = _leafsValues.length;
         syncTreeData.creationBlock = block.number;
+        syncTreeData.prevLeafIndex = _leafsIndexes[0];
         emit NewSyncTree(_leafsValues,  _leafsIndexes, _syncTreeIndex);
         //TODO check this trustedRoot when processSyncTree completes. And void the thing if it doesn't match!!
         
@@ -131,35 +133,26 @@ contract GigaBridge is IGigaBridge {
         uint256 _lastPendingLeafIndex = _willComplete ? (_syncTreeData.pendingLeafIndexLength - 1) : (_maxPendingLeafs + _syncTreeData.nextPendingLeafsIndex - 1); // @TODO save gas by removing -1 and doing < instead of <=
 
         // remember _pendingLeafIndex != _nextLeafIndex TODO naming
-        uint256 _nextLeafIndex = _syncTreeData.nextLeafIndex;
+        uint256 _prevLeafIndex = _syncTreeData.prevLeafIndex;
         
         // loop over all pending leafs after .nextPendingLeafsIndex, and stop at 
-        for (uint256 _pendingLeafIndex = _syncTreeData.nextPendingLeafsIndex; _pendingLeafIndex <= _lastPendingLeafIndex; _pendingLeafIndex++) {
+        uint256 _pendingLeafIndex;
+        for (_pendingLeafIndex = _syncTreeData.nextPendingLeafsIndex; _pendingLeafIndex <= _lastPendingLeafIndex; _pendingLeafIndex++) {
             PendingLeaf memory pendingLeaf = syncTreesPendingLeafs[_syncTreeIndex][_pendingLeafIndex];
             
             // pendingLeaf.index bigger? that means there is a gap, fill it with zeros!!
-            if(pendingLeaf.index > _nextLeafIndex) { 
-                uint256 zerosGap = pendingLeaf.index - _nextLeafIndex - 1;
+            if(pendingLeaf.index > _prevLeafIndex + 1) { 
+                uint256 zerosGap = pendingLeaf.index - _prevLeafIndex - 1;
                 for (uint i = 0; i < zerosGap; i++) {
                     LazyImtPoseidon2.insert(syncTree, 0);
                 }
-                _nextLeafIndex += zerosGap + 1;
-            } else {
-                _nextLeafIndex++;
             }
-
+            _prevLeafIndex = pendingLeaf.index;
             // finally we insert our pending leaf
             LazyImtPoseidon2.insert(syncTree, pendingLeaf.value);
         }
 
         if(_willComplete) {
-            // we're done, let's cleanup the slots for reuse!
-            // note we don't set  syncTreesPendingLeafs[_syncTreeIndex] to zeros since those will be overwritten by createNewSyncTree
-            syncTreeData.nextLeafIndex = 0;
-            syncTreeData.nextPendingLeafsIndex = 0;
-            syncTreeData.pendingLeafIndexLength = 0;
-            LazyImtPoseidon2.reset(syncTree);
-
             // now let's add the root
             uint256 _root = LazyImtPoseidon2.root(syncTree);
             uint256 _depth = _calculateDepth(syncTree.numberOfLeaves);
@@ -168,9 +161,16 @@ contract GigaBridge is IGigaBridge {
                 rootHistory[_root] = RootType.SYNC_ROOT;
             }
             emit NewRoot(_root, _depth, RootType.SYNC_ROOT, _syncTreeData.creationBlock);
+
+            // we're done, let's cleanup the slots for reuse!
+            // note we don't set  syncTreesPendingLeafs[_syncTreeIndex] to zeros since those will be overwritten by createNewSyncTree
+            syncTreeData.prevLeafIndex = 0;
+            syncTreeData.nextPendingLeafsIndex = 0;
+            syncTreeData.pendingLeafIndexLength = 0;
+            LazyImtPoseidon2.reset(syncTree);
         } else {
-            syncTreeData.nextLeafIndex = _nextLeafIndex + 1;
-            syncTreeData.nextPendingLeafsIndex = _nextLeafIndex + 1;
+            syncTreeData.prevLeafIndex = _prevLeafIndex;
+            syncTreeData.nextPendingLeafsIndex = _pendingLeafIndex;
         }
     }
 
