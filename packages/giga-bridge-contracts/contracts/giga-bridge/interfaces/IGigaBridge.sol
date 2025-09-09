@@ -16,7 +16,7 @@ interface IGigaBridge {
     }
 
     event LeafUpdated(uint256 indexed index, uint256 indexed value);
-    event LeafRegistered(address indexed owner, address indexed updater, uint256 indexed index, uint256 value);
+    event LeafRegistered(address indexed owner, address indexed updater, uint256 indexed index);
     event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes, uint256 indexed syncTreeIndex);
     event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes);
     event NewRoot(uint256 indexed root, uint256 depth, RootType rootType);

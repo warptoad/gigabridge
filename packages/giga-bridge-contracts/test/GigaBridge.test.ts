@@ -18,6 +18,7 @@ import { deployPoseidon2Huff } from "../../giga-bridge-js/src/poseidon2/deployPo
 import { GigaBridge$Type } from "../artifacts/contracts/giga-bridge/GigaBridge.sol/artifacts.js";
 import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
 import GigaBridgeArtifact from "../artifacts/contracts/giga-bridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
+import {getSyncTree} from "../../giga-bridge-js/src/gigaBridge.ts"
 
 
 describe("Poseidon2", async function () {
@@ -34,34 +35,30 @@ describe("Poseidon2", async function () {
         const LazyIMT = await viem.deployContract("LazyImtPoseidon2")
         const gigaBridgeDeployer = await viem.deployContract("GigaBridge",[32],{libraries:{LazyImtPoseidon2:LazyIMT.address}})
         const aliceAddress = (await alice.getAddresses())[0]
-        const gigaBridgeAlice = getContract({abi:gigaBridgeDeployer.abi, address:gigaBridgeDeployer.address, client:alice})
+        
+        const gigaBridgeAlice = getContract({abi:gigaBridgeDeployer.abi, address:gigaBridgeDeployer.address, client:{wallet:alice, public:publicClient}})
         console.log({aliceAddress})
-        //@ts-ignore
-        let txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 69])
-        //@ts-ignore
-        const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0])
+        
+        let txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 69n])
+        
+        const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
         console.log({updaterAddress})
-        //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 420])
+        
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 420n])
         console.log({txHash})
-        //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4201])
-                //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4202])
-                //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4203])
-                //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4204])
-                //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4205])
-                //@ts-ignore
-        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4206])
-        //@ts-ignore
-        txHash = await gigaBridgeAlice.write.updateLeaf([420420, 1])
-        //@ts-ignore
-        txHash = await gigaBridgeAlice.write.createPendingSyncTree([0, [69,420,4201, 4202,4203,4204, 4205, 4206], [0,1,2,3,4,5,6,7]])
-        //@ts-ignore
-        txHash = await gigaBridgeAlice.write.processSyncTree([0, 10])
-  
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4201n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4202n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4203n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4204n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4205n])
+        txHash = await gigaBridgeAlice.write.registerNewLeaf([aliceAddress, aliceAddress, 4206n])
+        txHash = await gigaBridgeAlice.write.updateLeaf([420420n, 1n])
+        
+        const createSyncTreeTxHash = await gigaBridgeAlice.write.createPendingSyncTree([0n, [69n,4201n, 4202n,4203n, 4206n], [0n,2n,3n,4n,7n]])
+        
+        txHash = await gigaBridgeAlice.write.processSyncTree([0n, 10n])
+        console.log({gigaBridgeAlice: gigaBridgeAlice.address})
+        const syncTree = await getSyncTree(createSyncTreeTxHash,publicClient,gigaBridgeAlice.address)
+        console.log({syncTree})
     })
 });
