@@ -6,7 +6,7 @@ import { IGigaBridge$Type } from "../../giga-bridge-contracts/artifacts/contract
 import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem } from "viem";
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
-
+const poseidon2IMTHashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
 
 // TODO complain viem doesn't do this for me!
 type NewSyncTreeEventArgs = {args: {syncTreeIndex: bigint,leafValues: bigint[],leafIndexes: bigint[]}}
@@ -24,29 +24,30 @@ export async function getSyncTree(txHash: Hash, publicClient: PublicClient, giga
     // console.log({events})
 
     const txReceipt = await publicClient.getTransactionReceipt({ hash: txHash });
-    const syncTreeEvent = parseEventLogs({
+    const syncTreeEvents = parseEventLogs({
         abi: GigaBridgeArtifact.abi,
         eventName: 'NewSyncTree',
         logs: txReceipt.logs,
-    })[0] as any as NewSyncTreeEvent;
+    }) as any as NewSyncTreeEvent[];
 
-    const leafIndexes = syncTreeEvent.args.leafIndexes
-    const leafValues = syncTreeEvent.args.leafValues
-    let syncTreeLeafs:bigint[] = []
-    let prevLeafIndex=0n;
-    for (let i = 0; i < leafIndexes.length; i++) {
-        const gap = leafIndexes[i] - prevLeafIndex - 1n
-        if (gap > 0n) {
-            syncTreeLeafs = [...syncTreeLeafs, ...new Array(Number(gap)).fill(0n)]
+    const trees = []
+    for (const syncTreeEvent of syncTreeEvents) {
+        const leafIndexes = syncTreeEvent.args.leafIndexes
+        const leafValues = syncTreeEvent.args.leafValues
+        let syncTreeLeafs:bigint[] = []
+        let prevLeafIndex=0n;
+        for (let i = 0; i < leafIndexes.length; i++) {
+            const gap = leafIndexes[i] - prevLeafIndex - 1n
+            if (gap > 0n) {
+                syncTreeLeafs = [...syncTreeLeafs, ...new Array(Number(gap)).fill(0n)]
+            }
+            syncTreeLeafs.push(leafValues[i])
+            prevLeafIndex = leafIndexes[i]
         }
-        syncTreeLeafs.push(leafValues[i])
-        prevLeafIndex = leafIndexes[i]
+        const depth = Math.ceil(Math.log2(syncTreeLeafs.length))
+        const tree = new IMT(poseidon2IMTHashFunc, depth, 0n, 2, syncTreeLeafs)
+        trees.push(tree)
     }
-    const depth = Math.ceil(Math.log2(syncTreeLeafs.length))
-    const hashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
-    const tree = new IMT(hashFunc, depth, 0n, 2, syncTreeLeafs)
-    const root = tree.root
-    const isRoot = await gigaBridge.read.rootHistory([root])
-    console.log({isRoot})
-    return tree
+
+    return trees
 }
