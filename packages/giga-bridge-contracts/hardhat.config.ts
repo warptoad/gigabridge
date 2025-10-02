@@ -16,7 +16,8 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
-          remappings: ["@aztec/core=node_modules/@aztec/l1-contracts/src/core"],
+          // do these remappings do anything? Hardhat seems to only use remappings.txt
+          remappings: [],
         },
 
       },
@@ -27,7 +28,8 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
-          remappings: ["@aztec/core=node_modules/@aztec/l1-contracts/src/core",],
+          // do these remappings do anything? Hardhat seems to only use remappings.txt
+          remappings: [],
         },
       },
     },

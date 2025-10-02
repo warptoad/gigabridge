@@ -1,1 +1,1 @@
-@aztec/core=node_modules/@aztec/l1-contracts/src/core
+@aztec/l1-contracts=node_modules/aztec-l1-contracts-hardhat-fix/
