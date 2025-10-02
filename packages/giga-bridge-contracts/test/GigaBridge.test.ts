@@ -13,7 +13,7 @@ import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/
 import { getContract, getContractAddress, Hex, parseEventLogs, PublicClient, toHex, WalletClient } from "viem";
 import { create2Proxy } from "../../giga-bridge-js/src/poseidon2/create2Proxy.ts";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
-import { compileHuff } from "../scripts/deploy/compileHuff.js";
+import { compileHuff } from "../scripts/compile/compileHuff.ts";
 import { deployPoseidon2HuffWithInterface } from "../../giga-bridge-js/src/poseidon2/deployPoseidon2.js";
 import { GigaBridge$Type } from "../artifacts/contracts/giga-bridge/GigaBridge.sol/artifacts.js";
 import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}

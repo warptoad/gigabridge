@@ -1,9 +1,12 @@
 import type { HardhatUserConfig } from "hardhat/config";
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable } from "hardhat/config";
-
+import hardhatIgnitionViem from "@nomicfoundation/hardhat-ignition-viem";
 const config: HardhatUserConfig = {
-  plugins: [hardhatToolboxViemPlugin],
+  plugins: [
+    hardhatToolboxViemPlugin,
+    hardhatIgnitionViem,
+  ],
   solidity: {
     profiles: {
       default: {
@@ -13,6 +16,7 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
+          remappings: ["@aztec/core=node_modules/@aztec/l1-contracts/src/core"],
         },
 
       },
@@ -23,6 +27,7 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
+          remappings: ["@aztec/core=node_modules/@aztec/l1-contracts/src/core",],
         },
       },
     },
@@ -47,10 +52,10 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    sources:[
+    sources: [
       "./contracts",
     ]
-  }
+  },
 };
 
 export default config;

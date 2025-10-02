@@ -63,6 +63,11 @@ contract GigaBridge is IGigaBridge {
     }
 
     function updateLeaf(uint256 _value, uint256 _index) public override returns (uint256 _root) {
+        // TODO add param names something like "_valueTimeStamp" and check that only the most recent index is added
+        // but do store it in `leafHistory[_index][_value] = true;` for syncTree users
+        // this is so you can ensure your leaf is always the most recent message, ex all adapters use it to pass the block number
+        // TODO also emit that in the event
+        // Maybe we can call "_valueTimeStamp" l2BlockNumber but that is technically incorrect since gigaBridge can be used with L2
         require(indexPerUpdater[_index] == msg.sender, "msg.sender is not an authorized updater for this _index");
         
         // update leaf
