@@ -17,10 +17,6 @@ struct L2ToL1MessageProof {
     bytes32[] path;
 }
 
-interface IIRollup is IRollup {
-    function getVersion() external view returns(uint256);
-}
-
 interface IPoseidon2 {
     function hash4(uint256[4] memory) external view returns (uint256);
 }

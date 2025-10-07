@@ -1,6 +1,6 @@
 # Remix compiler artifacts
-**/artifacts/
-**/artifacts/**
+# **/artifacts/
+# **/artifacts/**
 
 # Remix plugin state folders
 deps/
@@ -16,3 +16,4 @@ states/
 
 # Node modules
 /node_modules
+packages/giga-bridge-contracts/contracts/adapters/aztec/aztec_adapter_l2/codegenCache.json

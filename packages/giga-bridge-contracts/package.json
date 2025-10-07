@@ -22,6 +22,10 @@
     "typescript": "~5.8.0"
   },
   "dependencies": {
+    "@aztec/accounts": "^2.0.3",
+    "@aztec/aztec.js": "^2.0.3",
+    "@aztec/noir-contracts.js": "^2.0.3",
+    "@aztec/pxe": "^2.0.3",
     "@zkpassport/poseidon2": "^0.6.2",
     "aztec-l1-contracts-hardhat-fix": "2.0.6",
     "poseidon2-evm": "1.0.0",
