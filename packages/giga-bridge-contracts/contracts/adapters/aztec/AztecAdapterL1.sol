@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {AdapterCoreL1} from "../core/AdapterCoreL1.sol";
 import {IAztecAdapterL1} from "./interfaces/IAztecAdapterL1.sol";
 
-
+//@DEV_UX_FEEDBACK @aztec/l1-contracts is remapped to aztec-l1-contracts-hardhat-fix, which is a package i created because aztecs package is outdated and broken (remapping issues)
 import {IRollup} from "@aztec/l1-contracts/src/core/interfaces/IRollup.sol";
 import {IRegistry} from "@aztec/l1-contracts/src/governance/interfaces/IRegistry.sol";
 import {IInbox} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IInbox.sol";

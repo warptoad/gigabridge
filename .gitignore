@@ -17,3 +17,5 @@ states/
 # Node modules
 /node_modules
 packages/giga-bridge-contracts/contracts/adapters/aztec/aztec_adapter_l2/codegenCache.json
+packages/giga-bridge-contracts/store/pxe1/data.mdb
+packages/giga-bridge-contracts/store/pxe1/lock.mdb

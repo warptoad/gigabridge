@@ -24,6 +24,7 @@
   "dependencies": {
     "@aztec/accounts": "^2.0.3",
     "@aztec/aztec.js": "^2.0.3",
+    "@aztec/kv-store": "^2.0.3",
     "@aztec/noir-contracts.js": "^2.0.3",
     "@aztec/pxe": "^2.0.3",
     "@zkpassport/poseidon2": "^0.6.2",

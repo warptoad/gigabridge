@@ -192,7 +192,7 @@
     "@aztec/stdlib" "2.0.3"
     tslib "^2.4.0"
 
-"@aztec/kv-store@2.0.3":
+"@aztec/kv-store@2.0.3", "@aztec/kv-store@^2.0.3":
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/@aztec/kv-store/-/kv-store-2.0.3.tgz#47cbc6084c1b05d26fd0c79bcbe989ad114b9e93"
   integrity sha512-U43RY0CxvWN9ryk3lBMlawV348ur/L5faA+ABP1xn1emXC5W60qyJ9fthv4jdUrz8s+czjFQDwjF4GERWHGReg==
