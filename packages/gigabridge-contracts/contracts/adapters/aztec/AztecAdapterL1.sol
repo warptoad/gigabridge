@@ -22,7 +22,7 @@ interface IPoseidon2 {
 }
 contract AztecAdapterL1 is AdapterCoreL1, IAztecAdapterL1 {
     //TODO move to core
-    address internal constant HASHER_ADDRESS = 0x5308AdF8a2B46dfe32a00503adD831174586FC16; 
+    address internal constant HASHER_ADDRESS = 0x68f2bf1DBd3e5BAad91A79081bC989a2F34Dc02F; 
     IPoseidon2 Poseidon2 = IPoseidon2(HASHER_ADDRESS);
     
     // cant be in core because ethAddress < aztecAddress or maybe make something generic?

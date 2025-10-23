@@ -20,7 +20,7 @@ import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyI
 import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 import {getSyncTree} from "../../gigabridge-js/src/gigaBridge.ts"
 import { ContractReturnType } from "@nomicfoundation/hardhat-viem/types";
-const expectedPoseidon2HuffWithInterfaceAddress = "0x5308AdF8a2B46dfe32a00503adD831174586FC16" // this is also hardcoded in LazyIMTPoseidon2 thats why
+const expectedPoseidon2HuffWithInterfaceAddress = "0x68f2bf1DBd3e5BAad91A79081bC989a2F34Dc02F" // this is also hardcoded in LazyIMTPoseidon2 thats why
 
 const GigaBridgeContractName = "GigaBridge"
 const ImtContractName = "LazyImtPoseidon2"
