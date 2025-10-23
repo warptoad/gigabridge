@@ -1,5 +1,5 @@
 {
-  "name": "giga-bridge-js",
+  "name": "@warptoad/gigabridge-js",
   "version": "0.0.0",
   "description": "A viem js library to interact with the giga-bridge and it's adapters",
   "main": "index.js",

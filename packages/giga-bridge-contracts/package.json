@@ -1,5 +1,5 @@
 {
-  "name": "giga-bridge-contracts",
+  "name": "@warptoad/gigabridge-contracts",
   "version": "0.0.0",
   "main": "index.js",
   "repository": "https://github.com/warptoad/giga-bridge/packages/giga-bridge-contracts",
