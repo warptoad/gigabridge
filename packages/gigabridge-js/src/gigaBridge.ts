@@ -1,8 +1,8 @@
 
 import { IMT, IMTHashFunction, IMTNode } from "@zk-kit/imt"
 import { poseidon2Hash } from "@zkpassport/poseidon2"
-import GigaBridgeArtifact from "../../giga-bridge-contracts/artifacts/contracts/giga-bridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
-import { IGigaBridge$Type } from "../../giga-bridge-contracts/artifacts/contracts/giga-bridge/interfaces/IGigaBridge.sol/artifacts.ts"
+import GigaBridgeArtifact from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
+import { IGigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/interfaces/IGigaBridge.sol/artifacts.js"
 import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem } from "viem";
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"

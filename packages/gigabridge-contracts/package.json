@@ -2,7 +2,7 @@
   "name": "@warptoad/gigabridge-contracts",
   "version": "0.0.0",
   "main": "index.js",
-  "repository": "https://github.com/warptoad/giga-bridge/packages/giga-bridge-contracts",
+  "repository": "https://github.com/warptoad/gigabridge/packages/gigabridge-contracts",
   "author": "Jim Jim Valkema",
   "license": "MIT",
   "type": "module",

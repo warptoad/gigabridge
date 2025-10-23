@@ -11,11 +11,11 @@ const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json" with {type: "json"}
 
 import { getContract, getContractAddress, Hex, parseEventLogs, PublicClient, toHex, WalletClient } from "viem";
-import { create2Proxy } from "../../giga-bridge-js/src/poseidon2/create2Proxy.ts";
+import { create2Proxy } from "../../gigabridge-js/src/poseidon2/create2Proxy.ts";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 import { compileHuff } from "../scripts/compile/compileHuff.ts";
-import { deployPoseidon2HuffWithInterface } from "../../giga-bridge-js/src/poseidon2/deployPoseidon2.js";
-import GigaBridgeArtifact from "../../giga-bridge-contracts/artifacts/contracts/giga-bridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
+import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseidon2/deployPoseidon2.js";
+import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 
 
 describe("Poseidon2", async function () {

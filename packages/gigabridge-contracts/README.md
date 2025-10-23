@@ -1,4 +1,4 @@
-# giga-bridge contracts
+# gigabridge contracts
 
 yay!
 
