@@ -32,5 +32,27 @@
     "poseidon2-evm": "1.0.0",
     "viem": "^2.30.0",
     "zk-kit-lazy-imt-custom-hash": "2.0.4"
+  },
+  "files": [
+    "dist",
+    "contracts"
+  ],
+  "node": "dist/esm/src/index.js",
+  "import": "dist/browser/src/index.js",
+  "types": "dist/types/src/index.d.ts",
+  "exports": {
+    ".": {
+      "node": "./dist/esm/src/index.js",
+      "import": "./dist/browser/src/index.js",
+      "types": "./dist/types/src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "build:esm": "tsc -p tsconfig.build.esm.json",
+    "build:cjs": "tsc -p  tsconfig.build.cjs.json",
+    "build:browser": "tsc -p  tsconfig.build.browser.json",
+    "build": "yarn build:esm & yarn build:browser"
   }
 }

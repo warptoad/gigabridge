@@ -5,27 +5,29 @@ import { network } from "hardhat";
 
 // import Poseidon2Yul from "../artifacts/poseidon2-evm/src/Poseidon2Yul.sol/Poseidon2Yul.json" assert {type: "json"}
 // const Poseidon2HuffByteCode = "0x" + await compileHuff("./node_modules/poseidon2-evm/src/huff/Poseidon2.huff");
-import Poseidon2HuffArtifacts from "../huff_artifacts/NODE_MODULES/POSEIDON2-EVM/SRC/HUFF/POSEIDON2.HUFF.json" with {type: "json"}
+import Poseidon2HuffArtifacts from "../huff_artifacts/NODE_MODULES/POSEIDON2-EVM/SRC/HUFF/POSEIDON2.HUFF.json" //with {type: "json"}
 const Poseidon2HuffByteCode = Poseidon2HuffArtifacts.bytecode;
 
-import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json" with {type: "json"}
+import Poseidon2TestArtifact from "../artifacts/contracts/test/testPoseidon.sol/testPoseidon.json"// with {type: "json"}
 
-import { getContract, getContractAddress, Hex, parseEventLogs, PublicClient, toHex, WalletClient } from "viem";
-import { create2Proxy } from "../../gigabridge-js/src/poseidon2/create2Proxy.ts";
+import { getContract, getContractAddress, GetContractReturnType, Hex, parseEventLogs, PublicClient, toHex, WalletClient } from "viem";
+import { create2Proxy } from "../../gigabridge-js/src/poseidon2/create2Proxy.js";
 import { poseidon2Hash } from "@zkpassport/poseidon2"
-import { compileHuff } from "../scripts/compile/compileHuff.ts";
+import { compileHuff } from "../scripts/compile/compileHuff.js";
 import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseidon2/deployPoseidon2.js";
 import { GigaBridge$Type } from "../artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js";
-import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
-import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
-import {getSyncTree} from "../../gigabridge-js/src/gigaBridge.ts"
+import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" //with {type: "json"}
+import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" //with {type: "json"}
+import {getSyncTree} from "../../gigabridge-js/src/gigaBridge.js"
 import { ContractReturnType } from "@nomicfoundation/hardhat-viem/types";
+
 const expectedPoseidon2HuffWithInterfaceAddress = "0x68f2bf1DBd3e5BAad91A79081bC989a2F34Dc02F" // this is also hardcoded in LazyIMTPoseidon2 thats why
 
 const GigaBridgeContractName = "GigaBridge"
 const ImtContractName = "LazyImtPoseidon2"
 
 describe("Poseidon2", async function () {
+    //@ts-ignore
     const { viem } = await network.connect();
     const publicClient = await viem.getPublicClient();
     let gigaBridge: ContractReturnType<typeof GigaBridgeContractName>;

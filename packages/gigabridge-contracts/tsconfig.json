@@ -1,14 +1,23 @@
-/* Based on https://github.com/tsconfig/bases/blob/501da2bcd640cf95c95805783e1012b992338f28/bases/node22.json */
 {
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "nodenext",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": false,
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "noEmit": false,
+        "baseUrl": ".",
+        // "rootDir": "./",
+    },
+    "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.json"
+    ],
+    "exclude": [
+        "*node_modules*",
+        "*dist*",
+        "*tsconfig.*",
+        "*scripts/*",
+        "*test/*",
+        "*ignition/*",
+        "./contracts/adapters/aztec/aztec_adapter_l2/src/artifacts/Main.ts",
+        "./cache"
+    ]
 }

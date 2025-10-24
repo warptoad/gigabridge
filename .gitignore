@@ -19,3 +19,5 @@ states/
 packages/gigabridge-contracts/contracts/adapters/aztec/aztec_adapter_l2/codegenCache.json
 packages/gigabridge-contracts/store/pxe1/data.mdb
 packages/gigabridge-contracts/store/pxe1/lock.mdb
+
+warptoad-gigabridge-*.tgz

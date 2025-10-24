@@ -1,7 +1,8 @@
 import { ByteArray, getContractAddress, Hex, PublicClient, TestClient, WalletClient } from "viem"
-import { create2Proxy } from "./create2Proxy.ts"
+import { create2Proxy } from "./create2Proxy.js"
 import Poseidon2HuffByteCode from "./poseidon2HuffByteCode.json" with {type: "json"}
-import Poseidon2HuffWithInterfaceArtifact from "../../../gigabridge-contracts/artifacts/contracts/imt-poseidon2/Poseidon2HuffWithInterface.sol/Poseidon2HuffWithInterface.json" with {type: "json"}
+
+import {Poseidon2HuffWithInterfaceArtifact} from "../../../gigabridge-contracts/src/index.js" //with {type: "json"}
 
 export function getPoseidon2HuffAddress(salt: Hex) {
     return getContractAddress({ bytecode: "0x" + Poseidon2HuffByteCode.slice(2) as Hex, opcode: "CREATE2", from: create2Proxy.address, salt: salt })

@@ -8,7 +8,7 @@ import { createStore } from "@aztec/kv-store/lmdb";
 import { getPXEServiceConfig } from "@aztec/pxe/server";
 
 //local
-import { MainContractArtifact as aztecAdapterL2Artifact } from "../../contracts/adapters/aztec/aztec_adapter_l2/src/artifacts/Main.ts"
+import { MainContractArtifact as aztecAdapterL2Artifact } from "../../contracts/adapters/aztec/aztec_adapter_l2/src/artifacts/Main.js"
 const AZTEC_NODE_URL = "https://aztec-testnet-fullnode.zkv.xyz";
 // const PXE_URL = "http://localhost:8080"
 

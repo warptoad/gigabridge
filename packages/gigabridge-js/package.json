@@ -1,6 +1,7 @@
 {
   "name": "@warptoad/gigabridge-js",
-  "version": "0.0.0",
+  "private": false,
+  "version": "0.0.1",
   "description": "A viem js library to interact with the gigabridge and it's adapters",
   "main": "index.js",
   "repository": "https://github.com/warptoad/gigabridge/tree/main/packages/gigabridge-js",
@@ -9,7 +10,28 @@
   "dependencies": {
     "@zk-kit/imt": "^2.0.0-beta.8",
     "@zkpassport/poseidon2": "^0.6.2",
+    "tsc": "^2.0.4",
+    "typescript": "~5.8.0",
     "viem": "^2.37.2"
   },
-  "type": "module"
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "node": "./dist/esm/gigabridge-js/src/index.js",
+  "import": "dist/browser/gigabridge-js/src/index.js",
+  "types": "dist/types/gigabridge-js/src/index.d.ts",
+  "exports": {
+    ".": {
+      "node": "./dist/esm/gigabridge-js/src/index.js",
+      "import": "./dist/browser/gigabridge-js/src/index.js",
+      "types": "./dist/types/gigabridge-js/src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build:esm": "tsc -p tsconfig.build.esm.json",
+    "build:cjs": "tsc -p  tsconfig.build.cjs.json",
+    "build:browser": "tsc -p  tsconfig.build.browser.json",
+    "build": "yarn build:esm & yarn build:browser"
+  }
 }
