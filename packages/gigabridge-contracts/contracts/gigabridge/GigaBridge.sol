@@ -49,7 +49,7 @@ contract GigaBridge is IGigaBridge {
 
         // did we increase the depth of the tree? gigaDepth++ !
         uint256 _gigaRootDepth = gigaDepth;
-        if (2 ** _gigaRootDepth <= _index+1) {
+        if (2 ** _gigaRootDepth <= _index) {
             _gigaRootDepth++;
             gigaDepth = _gigaRootDepth;
         }

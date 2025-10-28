@@ -80,7 +80,7 @@ export async function queryEventInChunks<
             if (postQueryFilter) {
                 allEvents = postQueryFilter(allEvents)
             }
-            if (allEvents.length >= maxEvents) break;
+            if (allEvents.length >= maxEvents) {console.log(`stopped scanning at chunk ${index}/${numIters-1}`);break};
         }
     } else {
         for (let index = 0n; index < BigInt(numIters); index++) {
@@ -89,7 +89,7 @@ export async function queryEventInChunks<
             if (postQueryFilter) {
                 allEvents = postQueryFilter(allEvents)
             }
-            if (allEvents.length >= maxEvents) break;
+            if (allEvents.length >= maxEvents) {console.log(`stopped scanning at chunk ${index}/${numIters-1}`);break};
         }
     }
 

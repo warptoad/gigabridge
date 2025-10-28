@@ -47,10 +47,10 @@ export async function deployPoseidon2Huff(publicClient: PublicClient, deployer: 
             confirmations: 1,
         })
     }
-    return {poseidon2HuffAddress,  fundOneTimeAddressTx, proxyDeployTx, poseidon2HuffDeployTx}
+    return {poseidon2HuffAddress, fundOneTimeAddressTx, proxyDeployTx, poseidon2HuffDeployTx}
 }
 
-export async function deployPoseidon2HuffWithInterface(publicClient: PublicClient, deployer: WalletClient, huffSalt: Hex, interfaceSalt: Hex) {
+export async function deployPoseidon2HuffWithInterface(publicClient: PublicClient, deployer: WalletClient, huffSalt: Hex, interfaceSalt: Hex, debug?:boolean) {
     const {poseidon2HuffAddress, fundOneTimeAddressTx, proxyDeployTx, poseidon2HuffDeployTx} = await deployPoseidon2Huff(publicClient, deployer, huffSalt)
     
     const poseidon2HuffWithInterfaceAddress = getPoseidon2HuffInterfaceAddress(huffSalt)
@@ -68,8 +68,8 @@ export async function deployPoseidon2HuffWithInterface(publicClient: PublicClien
             confirmations: 1,
         })
     }
+    if (debug){ console.log("all deployed?", {create2Proxy:Boolean(await publicClient.getCode({ address: create2Proxy.address })),poseidon2HuffAddress: Boolean(await publicClient.getCode({ address: poseidon2HuffAddress })), poseidon2HuffWithInterfaceAddress: Boolean(await publicClient.getCode({ address: poseidon2HuffWithInterfaceAddress }))})}
 
-    console.log("all deployed?", {create2Proxy:Boolean(await publicClient.getCode({ address: create2Proxy.address })),poseidon2HuffAddress: Boolean(await publicClient.getCode({ address: poseidon2HuffAddress })), poseidon2HuffWithInterfaceAddress: Boolean(await publicClient.getCode({ address: poseidon2HuffWithInterfaceAddress }))})
     return {
         addresses: { create2ProxyAddress: create2Proxy.address, poseidon2HuffAddress, poseidon2HuffWithInterfaceAddress },
         txs: { fundOneTimeAddressTx, proxyDeployTx, poseidon2HuffDeployTx, Poseidon2HuffWithInterface2DeployTx: poseidon2HuffWithInterface2DeployTx }

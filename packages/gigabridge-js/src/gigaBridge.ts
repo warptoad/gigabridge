@@ -1,9 +1,10 @@
 
 import { IMT, IMTHashFunction, IMTNode } from "@zk-kit/imt"
+// import { LeanIMT } from "@zk-kit/lean-imt"
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 //import GigaBridgeArtifact from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"} 
 import { IGigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/interfaces/IGigaBridge.sol/artifacts.js"
-import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem, Abi, parseAbi, parseAbiItem } from "viem";
+import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem, Abi, parseAbi, parseAbiItem, TransactionReceipt } from "viem";
 //import {GigaBridgeContractWritableType } from "./types.js";
 import { type GigaBridge$Type }  from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 import { GigaBridgeArtifact, GigaBridgeContractTestType } from "../../gigabridge-contracts/src/index.js";
@@ -61,7 +62,14 @@ export async function getSyncTree({txHash, gigaBridge ,publicClient}:{txHash:Has
     return trees
 }
 
-export async function registerNewLeaf({args ,gigaBridge, client:{publicClient, wallet}}:{args:[owner:Address,updater:Address,value:bigint],gigaBridge: GigaBridgeContractWithWalletClient|GigaBridgeContractTestType,client:{ publicClient:PublicClient, wallet:WalletClient} }):Promise<bigint> {
+export async function registerNewLeaf(
+    {args ,gigaBridge, client:{publicClient, wallet}}
+    :{
+        args:[owner:Address,updater:Address,value:bigint],
+        gigaBridge: GigaBridgeContractWithWalletClient|GigaBridgeContractTestType,
+        client:{ publicClient:PublicClient, wallet:WalletClient} 
+    }
+){//:Promise<{index:bigint, txHash:Hash, txReceipt:TransactionReceipt}> {
     const txHash = await (gigaBridge as GigaBridgeContractWithWalletClient).write.registerNewLeaf(args, { account: wallet.account ?? null, chain: wallet.chain })
     const txReceipt = await publicClient.getTransactionReceipt({ hash: txHash });
     const registerEvent = parseEventLogs({
@@ -69,10 +77,10 @@ export async function registerNewLeaf({args ,gigaBridge, client:{publicClient, w
         eventName: 'LeafRegistered',
         logs: txReceipt.logs,
     })[0]
-    return registerEvent.args.index
+    return {index:registerEvent.args.index, txHash, txReceipt}
 }
 
-export async function updateLeaf({args ,gigaBridge, client:{publicClient, wallet}}:{args:[value:bigint, index:bigint],gigaBridge: GigaBridgeContractWithWalletClient|GigaBridgeContractTestType,client:{ publicClient:PublicClient, wallet:WalletClient} }):Promise<bigint> {
+export async function updateLeaf({args ,gigaBridge, client:{publicClient, wallet}}:{args:[value:bigint, index:bigint],gigaBridge: GigaBridgeContractWithWalletClient|GigaBridgeContractTestType,client:{ publicClient:PublicClient, wallet:WalletClient} }):Promise<Hash> {
     const txHash = await (gigaBridge as GigaBridgeContractWithWalletClient).write.updateLeaf(args, { account: wallet.account ?? null, chain: wallet.chain })
     return txHash
 }
@@ -92,6 +100,7 @@ export async function getGigaTree({gigaBridge, publicClient,deploymentBlock, blo
         }).reverse()
     }
     const nextLeafIndex = await gigaBridge.read.nextGigaIndex()
+    const depth = await gigaBridge.read.gigaDepth()
     const events = await queryEventInChunks({
         publicClient:publicClient,
         contract:gigaBridge as GigaBridgeContract,
@@ -105,7 +114,8 @@ export async function getGigaTree({gigaBridge, publicClient,deploymentBlock, blo
 
     const sortedEvents = events.sort((a:any,b:any)=> Number(a.args.index - b.args.index) )
     const leafs = sortedEvents.map((event)=>event.args.value)
-    console.log({leafs})
+    const tree = new IMT(poseidon2IMTHashFunc, Number(depth), 0n, 2, leafs)
+    return tree
 }
 
 export function getGigaBridgeContractObj({address, client}:{address:Address,client:Client}) {
