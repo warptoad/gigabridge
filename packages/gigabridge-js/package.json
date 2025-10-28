@@ -1,7 +1,7 @@
 {
   "name": "@warptoad/gigabridge-js",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A viem js library to interact with the gigabridge and it's adapters",
   "main": "index.js",
   "repository": "https://github.com/warptoad/gigabridge/tree/main/packages/gigabridge-js",

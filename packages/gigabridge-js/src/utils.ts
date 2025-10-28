@@ -10,13 +10,26 @@ export function minBigInt(a: bigint, b: bigint) {
 }
 
 /**
- * Queries contract events in chunks to handle large block ranges without exceeding RPC limits.
- * Supports optional filtering on indexed event arguments and processing in reverse order.
- * reverseOrder scans in reverse order but returns it in the normal order
- * 
- * TODO tutorial why reverse order and maxEvents 
- * TODO implement concurrent
- * 
+ * Fetches contract events in chunks to avoid RPC limits on big block ranges.
+ * Can filter on indexed args and scan backwards (latest first) but returns in normal order (earliest first).
+ *
+ * Reverse order helps when you want recent events first, so you can stop early with maxEvents without scanning everything.
+ * maxEvents lets you quit once you hit enough events, saving RPC calls.
+ *
+ * Note: No concurrency implemented. This usually messes with rate limits on most RPCs. For local setups, just bump up chunkSize.
+ *
+ * @param {PublicClient} args.publicClient
+ * @param {{ address: Address; abi: TAbi }} args.contract - the viem contract object (returned from getContract)
+ * @param {TEventName} args.eventName 
+ * @param {GetLogsParameters<TAbiEvent>['args']} [args.eventFilterArgs] - Filters for indexed parameters (this is passed to publicClient.getLogs aka eth_getLog)
+ * @param {bigint} [args.firstBlock] - Start block (inclusive). Defaults to 0n.
+ * @param {bigint} [args.lastBlock] - End block (inclusive). Defaults to current block.
+ * @param {boolean} [args.reverseOrder] - Scan latest to earliest, but returns the normal order.
+ * @param {number} [args.maxEvents] - Max events to fetch; stops early if hit. (events are counted after postQueryFilter is applied)
+ * @param {bigint} [args.chunkSize] - amount of block will be requested with eth_getLogs
+ * @param {(events: Log<bigint, number, false, TAbiEvent, true>[]) => Log<bigint, number, false, TAbiEvent, true>[]} [args.postQueryFilter] - Filter applied after events are queried.
+ *
+ * @returns {Promise<Log<bigint, number, false, TAbiEvent, true>[]>} Array of event logs, earliest to latest.
  */
 export async function queryEventInChunks<
   const TAbi extends Abi,

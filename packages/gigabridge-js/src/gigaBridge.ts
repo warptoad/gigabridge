@@ -101,13 +101,15 @@ export async function getGigaTree({gigaBridge, publicClient,deploymentBlock, blo
     }
     const nextLeafIndex = await gigaBridge.read.nextGigaIndex()
     const depth = await gigaBridge.read.gigaDepth()
+    // Can be further optimized by creating an event filter after each chunk that only scans for indexes that are already found
+    // But idk if i should since maybe the amount of indexes can be too large?
     const events = await queryEventInChunks({
         publicClient:publicClient,
         contract:gigaBridge as GigaBridgeContract,
         eventName:"LeafUpdated",
         firstBlock:deploymentBlock,
         chunkSize:blocksPerGetLogsReq,
-        reverseOrder: true,                         // 
+        reverseOrder: true,                        
         postQueryFilter: removeDuplicateIndexes,    // so maxEvents gets the correct length that doesn't include duplicates
         maxEvents: Number(nextLeafIndex)            // so it stops when all indexes are found
     })
