@@ -1,22 +1,29 @@
-import { Abi,AbiEvent, Address, PublicClient, Log, GetLogsParameters } from 'viem'
+import { Abi, AbiEvent, Address, PublicClient, Log, GetLogsParameters } from 'viem'
+import { GigaBridgeContract } from './types.js';
+import { GigaBridgeContractTestType } from '../../gigabridge-contracts/src/index.js';
 
 /**
  * Returns the smallest bigint.
  */
-export function minBigInt(a:bigint,b:bigint) {
+export function minBigInt(a: bigint, b: bigint) {
     return a < b ? a : b;
 }
-
 
 /**
  * Queries contract events in chunks to handle large block ranges without exceeding RPC limits.
  * Supports optional filtering on indexed event arguments and processing in reverse order.
+ * reverseOrder scans in reverse order but returns it in the normal order
  * 
  * TODO tutorial why reverse order and maxEvents 
  * TODO implement concurrent
+ * 
  */
-export async function queryEventInChunks({
-    client,
+export async function queryEventInChunks<
+  const TAbi extends Abi,
+  const TEventName extends string,
+  TAbiEvent extends AbiEvent = Extract<TAbi[number], AbiEvent & { name: TEventName }>
+>({
+    publicClient,
     contract,
     eventName,
     eventFilterArgs,
@@ -24,64 +31,67 @@ export async function queryEventInChunks({
     lastBlock,
     reverseOrder = false,
     maxEvents = Infinity,
-    chunkSize = 19999n  // 499n works in basically all cases, but 19999n is far more performant and works for most common rpcs like infura
-                        // if you're running your own archive node. You can set it really high.
+    chunkSize = 19999n,
+    postQueryFilter,
 }: {
-    client: PublicClient;
-    contract: { address: Address; abi: Abi };
-    eventName: string;
-    eventFilterArgs?: GetLogsParameters<AbiEvent>['args'];
-    firstBlock?: bigint;
+    publicClient: PublicClient;
+    contract: { address: Address; abi: TAbi };
+    eventName: TEventName;
+    eventFilterArgs?: GetLogsParameters<TAbiEvent>['args']; 
+    firstBlock?:bigint;
     lastBlock?: bigint;
     reverseOrder?: boolean;
     maxEvents?: number;
     chunkSize?: bigint;
-}): Promise<Log<bigint, number, false, AbiEvent, true>[]> {
+    postQueryFilter?:(events:Log<bigint, number, false, TAbiEvent, true>[])=>Log<bigint, number, false, TAbiEvent, true>[];
+}): Promise<Log<bigint, number, false, TAbiEvent, true>[]> { 
     const address = contract.address;
     const abi = contract.abi;
-    lastBlock = lastBlock ?? (await client.getBlockNumber());
-    let allEvents: Log<bigint, number, false, AbiEvent, true>[] = [];
+    
+    lastBlock ??= await publicClient.getBlockNumber(); 
+    let allEvents: Log<bigint, number, false, TAbiEvent, true>[] = [];
 
-    // Find the event ABI based on eventName
-    const eventAbi = abi.find((item) => item.type === 'event' && item.name === eventName) as AbiEvent | undefined;
+    // Find the event ABI based on eventName (now fully typed)
+    const eventAbi = abi.find((item) => item.type === 'event' && item.name === eventName) as TAbiEvent | undefined;
     if (!eventAbi) {
-        throw new Error(`Event "${eventName}" not found in ABI`);
+        throw new Error(`Event "${String(eventName)}" not found in ABI`);
     }
 
     const scanLogic = async (index: bigint) => {
         const start = index * chunkSize + firstBlock;
         const stop = minBigInt(start + chunkSize, lastBlock);
-        const logs = await client.getLogs({
+        const logs = await publicClient.getLogs({
             address,
             event: eventAbi,
             args: eventFilterArgs,
-            fromBlock: BigInt(start),
-            toBlock: BigInt(stop)
-        }) as Log<bigint, number, false, AbiEvent, true>[];
-        // console.log({ start, stop, events: logs });
+            fromBlock: start,
+            toBlock: stop
+        }) as Log<bigint, number, false, TAbiEvent, true>[];
         return logs;
     };
 
-    const numIters = Math.ceil(Number(lastBlock - firstBlock) / Number(chunkSize));
+    const range = lastBlock - firstBlock;
+    const numIters = Math.ceil(Number(range) / Number(chunkSize));
 
-    // console.log({ numIters });
     if (reverseOrder) {
-        for (let index = BigInt(numIters) - 1n; index >= 0n; index--) {
+        for (let index = BigInt(numIters - 1); index >= 0n; index--) {
             const events = await scanLogic(index);
             allEvents = [...events, ...allEvents];
-            if (allEvents.length >= maxEvents) {
-                break;
+            if (postQueryFilter) {
+                allEvents = postQueryFilter(allEvents)
             }
+            if (allEvents.length >= maxEvents) break;
         }
     } else {
-        for (let index = 0n; index < numIters; index++) {
+        for (let index = 0n; index < BigInt(numIters); index++) {
             const events = await scanLogic(index);
             allEvents = [...allEvents, ...events];
-            if (allEvents.length >= maxEvents) {
-                break;
+            if (postQueryFilter) {
+                allEvents = postQueryFilter(allEvents)
             }
+            if (allEvents.length >= maxEvents) break;
         }
     }
 
-    return allEvents;
+    return allEvents; 
 }

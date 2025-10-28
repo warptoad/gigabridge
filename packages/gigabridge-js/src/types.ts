@@ -1,13 +1,13 @@
 import { Account, Address, Chain, Client, GetContractParameters, GetContractReturnType, PublicClient, Transport, WalletClient} from "viem"
 import { GigaBridge$Type }  from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 
-export type KeyedClient =
+export type atLeastOneCLient =
   | {
-      public?: PublicClient;
+      publicClient?: PublicClient;
       wallet: WalletClient;
     }
   | {
-      public: PublicClient;
+      publicClient: PublicClient;
       wallet?: WalletClient;
     };
 

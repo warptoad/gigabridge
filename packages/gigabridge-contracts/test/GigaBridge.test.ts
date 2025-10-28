@@ -18,7 +18,7 @@ import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseid
 import { GigaBridge$Type } from "../artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js";
 import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
 import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
-import {getSyncTree, registerNewLeaf} from "../../gigabridge-js/src/gigaBridge.js"
+import {getGigaTree, getSyncTree, registerNewLeaf, updateLeaf} from "../../gigabridge-js/src/gigaBridge.js"
 import { GigaBridgeContractName, GigaBridgeContractTestType, ImtContractName } from "../src/index.js";
 
 const expectedPoseidon2HuffWithInterfaceAddress = "0x68f2bf1DBd3e5BAad91A79081bC989a2F34Dc02F" // this is also hardcoded in LazyIMTPoseidon2 thats why
@@ -116,16 +116,18 @@ describe("gigaBridge", async function () {
         it("should insert leafs in the gigaTree and be reproduced in js", async function () {
             const [alice, bob] = await viem.getWalletClients()
             const aliceAddress = (await alice.getAddresses())[0]
-            const gigaBridgeAlice = getContract({abi:gigaBridge.abi, address:gigaBridge.address, client:{wallet:alice, public:publicClient}})
             const indexes:bigint[] = []
             for (let i = 1n; i < 33n; i++) {
                 const owner = aliceAddress;
-                const updater = aliceAddress;   //usually this a contract, but today we use a EOA because we are lazy!!
+                const updater = aliceAddress;   // usually this a contract, but today we use a EOA because we are lazy!!
                 const value = i                 // usually a root of a commitment tree or state tree, but can be anything! (like a number!)
                 const index = await registerNewLeaf({args:[owner, updater, value], gigaBridge, client:{publicClient, wallet:alice}})
                 indexes.push(index)
             }
-            console.log({indexes})
+            await updateLeaf({args:[420n, 2n], gigaBridge, client:{publicClient, wallet:alice}})
+            await updateLeaf({args:[420n, 1n], gigaBridge, client:{publicClient, wallet:alice}})
+            await updateLeaf({args:[69n, 2n], gigaBridge, client:{publicClient, wallet:alice}})
+            await getGigaTree({gigaBridge, publicClient})
             
         })
     });
