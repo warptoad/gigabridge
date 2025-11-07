@@ -20,7 +20,7 @@ const gigaBridgeAbi = [...GigaBridgeArtifact.abi] as const;
 
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
-const poseidon2IMTHashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
+export const poseidon2IMTHashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
 
 
 function getGigaBridgeDeploymentBlock(chainId:number) {
