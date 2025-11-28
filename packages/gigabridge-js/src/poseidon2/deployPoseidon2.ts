@@ -12,24 +12,30 @@ export function getPoseidon2HuffInterfaceAddress(salt: Hex) {
     return getContractAddress({ bytecode: "0x" + Poseidon2HuffWithInterfaceArtifact.bytecode.slice(2) as Hex, opcode: "CREATE2", from: create2Proxy.address, salt: salt })
 }
 
-export async function deployPoseidon2Huff(publicClient: PublicClient, deployer: WalletClient, huffSalt: Hex) {
-    const proxyExist = Boolean(await publicClient.getCode({ address: create2Proxy.address }))
+export async function deployPoseidon2Huff(publicClient: PublicClient, deployer: WalletClient, huffSalt: Hex, debug?:boolean, proxyIsDeployedOverride?:boolean) {
+    const proxyCode = await publicClient.getCode({ address: create2Proxy.address })
+    if(debug){console.log({proxyCode})}
+    const proxyExist = Boolean(proxyCode)
     let fundOneTimeAddressTx;
     let proxyDeployTx;
-    if (proxyExist === false) {
+    if (proxyExist === false && Boolean(proxyIsDeployedOverride) === false) {
+        console.log("proxy doesn't exist and a tx is required that does not include the chainId, most rpcs dont support this so let hope for the best!")
         //@ts-ignore idk how to fix it, it some how requires kzg blob field. what??
         fundOneTimeAddressTx = await deployer.sendTransaction({
             to: create2Proxy.from,
             value: create2Proxy.gas
         })
+
+        if(debug){console.log(`sending tx: ${fundOneTimeAddressTx}`)}
         await publicClient.waitForTransactionReceipt({
             hash: fundOneTimeAddressTx,
-            confirmations: 1,
+            confirmations: 2,
         })
         proxyDeployTx = await deployer.sendRawTransaction({ serializedTransaction: create2Proxy.tx })
+        if(debug){console.log(`sending tx: ${proxyDeployTx}`)}
         await publicClient.waitForTransactionReceipt({
             hash: proxyDeployTx,
-            confirmations: 1,
+            confirmations: 2,
         })
     }
     const poseidon2HuffAddress = getPoseidon2HuffAddress(huffSalt)
@@ -42,9 +48,10 @@ export async function deployPoseidon2Huff(publicClient: PublicClient, deployer: 
             data: huffSalt + Poseidon2HuffByteCode.slice(2) as Hex,
             to: create2Proxy.address,
         })
+        if(debug){console.log(`sending tx: ${poseidon2HuffDeployTx}`)}
         await publicClient.waitForTransactionReceipt({
             hash: poseidon2HuffDeployTx,
-            confirmations: 1,
+            confirmations: 2,
         })
     }
     return {poseidon2HuffAddress, fundOneTimeAddressTx, proxyDeployTx, poseidon2HuffDeployTx}
