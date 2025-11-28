@@ -2072,10 +2072,10 @@
     tsx "^4.19.3"
     zod "^3.23.8"
 
-"@nomicfoundation/hardhat-toolbox-viem@^5.0.0":
-  version "5.0.1"
-  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-toolbox-viem/-/hardhat-toolbox-viem-5.0.1.tgz#0139f73a9984542ea92aae7968259a0abd14faed"
-  integrity sha512-NhPQjHwTk356k6WS7tPeEWS5ymtlZe2lzcZzvgd2AD7wrMXE/zUu5qacXgwPq/M6HVEczSpuFeu+/koQgA2pbA==
+"@nomicfoundation/hardhat-toolbox-viem@5.0.0":
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-toolbox-viem/-/hardhat-toolbox-viem-5.0.0.tgz#9e9909d39de7ada10e7c45173267d13fba5a2bf4"
+  integrity sha512-pls++zTi+NcYPV6lWpyEFJqblfvaQ9oMXDOFfob1u1GT3PilXOcl3pRC9gHOCPnujOrU8xdiWfuZ/4X/26Ve5A==
 
 "@nomicfoundation/hardhat-utils@^3.0.0", "@nomicfoundation/hardhat-utils@^3.0.1", "@nomicfoundation/hardhat-utils@^3.0.2", "@nomicfoundation/hardhat-utils@^3.0.5":
   version "3.0.5"
@@ -2114,13 +2114,13 @@
     "@nomicfoundation/hardhat-errors" "^3.0.0"
     "@nomicfoundation/hardhat-utils" "^3.0.0"
 
-"@nomicfoundation/hardhat-viem@3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-viem/-/hardhat-viem-3.0.0.tgz#1d1142b07c7dac5d0f403325bf589544130ed2e9"
-  integrity sha512-4QHBfTgJuo1O8vK9AO2AQYKsIp9yg06aF9C+WydDr2XS7VLJYh3g3gZdszLbSD9eHWsuviN688VKbcmfIZNWvQ==
+"@nomicfoundation/hardhat-viem@3.0.1":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-viem/-/hardhat-viem-3.0.1.tgz#d782819aabea932873e8756cbb6a785052838a4c"
+  integrity sha512-sUyi3Xn31vItf925YRgHp7x6FIFfG9B+jacWYyJ0RBi7BWCrC/aSUX4jRRmpzaZ4opLQ8KXAZdxS91Yka7AYtw==
   dependencies:
     "@nomicfoundation/hardhat-errors" "^3.0.0"
-    "@nomicfoundation/hardhat-utils" "^3.0.0"
+    "@nomicfoundation/hardhat-utils" "^3.0.5"
 
 "@nomicfoundation/hardhat-zod-utils@^3.0.0":
   version "3.0.1"
@@ -5600,20 +5600,6 @@ viem@2.23.7:
     isows "1.0.6"
     ox "0.6.7"
     ws "8.18.0"
-
-viem@^2.30.0, viem@^2.37.2:
-  version "2.40.3"
-  resolved "https://registry.yarnpkg.com/viem/-/viem-2.40.3.tgz#237b11c54f808b5747e483fa7dd05a843e3c079f"
-  integrity sha512-feYfEpbgjRkZYQpwcgxqkWzjxHI5LSDAjcGetHHwDRuX9BRQHUdV8ohrCosCYpdEhus/RknD3/bOd4qLYVPPuA==
-  dependencies:
-    "@noble/curves" "1.9.1"
-    "@noble/hashes" "1.8.0"
-    "@scure/bip32" "1.7.0"
-    "@scure/bip39" "1.6.0"
-    abitype "1.1.0"
-    isows "1.0.7"
-    ox "0.9.6"
-    ws "8.18.3"
 
 "viem@npm:@aztec/viem@2.38.2":
   version "2.38.2"

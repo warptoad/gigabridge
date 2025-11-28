@@ -7,7 +7,7 @@ import {SNARK_SCALAR_FIELD} from "zk-kit-lazy-imt-custom-hash/Constants.sol";
 library LazyImtPoseidon2 {
     using InternalLazyIMT for *;
  
-    address internal constant HASHER_ADDRESS = 0x68f2bf1DBd3e5BAad91A79081bC989a2F34Dc02F; 
+    address internal constant HASHER_ADDRESS = 0x4ef312ACc907b7d3Ccdb62e5494DB49d832134B0; 
     
     // shout to pirate software and yandredev
     uint256 internal constant Z_0 =   0x00;
