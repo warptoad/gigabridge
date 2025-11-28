@@ -1,6 +1,4 @@
 import { Abi, AbiEvent, Address, PublicClient, Log, GetLogsParameters } from 'viem'
-import { GigaBridgeContract } from './types.js';
-import { GigaBridgeContractTestType } from '../../gigabridge-contracts/src/index.js';
 
 /**
  * Returns the smallest bigint.

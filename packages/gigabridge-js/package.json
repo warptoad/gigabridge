@@ -1,13 +1,14 @@
 {
   "name": "@warptoad/gigabridge-js",
   "private": false,
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "A viem js library to interact with the gigabridge and it's adapters",
   "main": "index.js",
   "repository": "https://github.com/warptoad/gigabridge/tree/main/packages/gigabridge-js",
   "author": "Jim Jim Valkema",
   "license": "MIT",
   "dependencies": {
+    "@aztec/bb.js": "3.0.0-nightly.20251030-2",
     "@zk-kit/imt": "^2.0.0-beta.8",
     "@zkpassport/poseidon2": "^0.6.2",
     "tsc": "^2.0.4",
@@ -26,6 +27,11 @@
       "node": "./dist/esm/gigabridge-js/src/index.js",
       "import": "./dist/browser/gigabridge-js/src/index.js",
       "types": "./dist/types/gigabridge-js/src/index.d.ts"
+    },
+    "./viem-utils": {
+      "node": "./dist/esm/gigabridge-js/src/viem-utils.js",
+      "import": "./dist/browser/gigabridge-js/src/viem-utils.js",
+      "types": "./dist/types/gigabridge-js/src/viem-utils.d.ts"
     }
   },
   "scripts": {

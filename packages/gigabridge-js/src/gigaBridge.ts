@@ -9,7 +9,7 @@ import { Address, Client, getContract, PublicClient, WalletClient, GetContractRe
 import { type GigaBridge$Type }  from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 import { GigaBridgeArtifact, GigaBridgeContractTestType } from "../../gigabridge-contracts/src/index.js";
 import { GigaBridgeContractWithWalletClient, GigaBridgeContract, atLeastOneCLient } from "./types.js";
-import { queryEventInChunks } from "./utils.js";
+import { queryEventInChunks } from "./viem-utils.js";
 
 const GIGA_BRIDGE_DEPLOYMENT_BLOCKS: {[chainId: number]: bigint;} = {
     
