@@ -20,13 +20,19 @@ struct L2ToL1MessageProof {
 interface IPoseidon2 {
     function hash4(uint256[4] memory) external view returns (uint256);
 }
+// gigaBridge <= crosschain zkState <= warptoad croschain private standard <= wrapping contract 
+// Intent protocol
+// warptoad croschain private standard + standard defi interactions
 contract AztecAdapterL1 is AdapterCoreL1, IAztecAdapterL1 {
+    //debug remove this
+    uint256 contentHash;
+
     //TODO move to core
     address internal constant HASHER_ADDRESS = 0x5308AdF8a2B46dfe32a00503adD831174586FC16; 
     IPoseidon2 Poseidon2 = IPoseidon2(HASHER_ADDRESS);
-    
+
     // cant be in core because ethAddress < aztecAddress or maybe make something generic?
-    bytes32 l2AdapterAddress;
+    bytes32 adapterAddressL2;
 
     // not core
     IInbox aztecInbox;
@@ -34,7 +40,8 @@ contract AztecAdapterL1 is AdapterCoreL1, IAztecAdapterL1 {
     uint256 aztecRollupVersion;
 
     // note core?
-    constructor(address _aztecRollupRegistry) {
+    constructor(address _aztecRollupRegistry, bytes32 _adapterAddressL2) {
+        adapterAddressL2 = _adapterAddressL2;
         IRegistry aztecRegistry = IRegistry(_aztecRollupRegistry);
         // why does IRollup return iHasVersion?
         IRollup aztecRollup = IRollup(address(aztecRegistry.getCanonicalRollup()));
@@ -53,15 +60,16 @@ contract AztecAdapterL1 is AdapterCoreL1, IAztecAdapterL1 {
         L2ToL1MessageProof calldata _L2ToL1MessageProof
         ) public {
         uint256 _contentHash = Poseidon2.hash4([_leafIndex, _leafValue, _blockNumber, _registrant]);
+        contentHash = _contentHash; //dedug remove this
         
         DataStructures.L2ToL1Msg memory _message = DataStructures.L2ToL1Msg({
-            sender: DataStructures.L2Actor(l2AdapterAddress, aztecRollupVersion),
+            sender: DataStructures.L2Actor(adapterAddressL2, aztecRollupVersion),
             recipient: DataStructures.L1Actor(address(this), block.chainid),
             content: bytes32(_contentHash)
         });
         aztecOutbox.consume(_message, _L2ToL1MessageProof.witnessL2BlockNumber, _L2ToL1MessageProof.leafIndex, _L2ToL1MessageProof.path);
 
-        // pass message to _AInternalFunctionThatTracksOwnerShip(_leafIndex, _leafValue, _blockNumber, l2AdapterAddress, _registrant) <- core stuff
+        // pass message to _AInternalFunctionThatTracksOwnerShip(_leafIndex, _leafValue, _blockNumber, adapterAddressL2, _registrant) <- core stuff
         // L1 adapter needs to track ownerShip because if you do it on L2 registering will take very long on optimism for example
     }
 }

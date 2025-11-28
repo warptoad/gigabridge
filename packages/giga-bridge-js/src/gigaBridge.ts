@@ -6,10 +6,10 @@ import { IGigaBridge$Type } from "../../giga-bridge-contracts/artifacts/contract
 import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem } from "viem";
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
-const poseidon2IMTHashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
+const poseidon2IMTHashFunc: IMTHashFunction = (nodes: IMTNode[]) => poseidon2Hash(nodes as bigint[]) as IMTNode
 
 // TODO complain viem doesn't do this for me!
-type NewSyncTreeEventArgs = {args: {syncTreeIndex: bigint,leafValues: bigint[],leafIndexes: bigint[]}}
+type NewSyncTreeEventArgs = { args: { syncTreeIndex: bigint, leafValues: bigint[], leafIndexes: bigint[] } }
 type NewSyncTreeEvent = ParseEventLogsParameters<typeof GigaBridgeArtifact.abi, "NewSyncTree", true> & NewSyncTreeEventArgs
 
 export async function getSyncTree(txHash: Hash, publicClient: PublicClient, gigaBridgeAddress = GIGA_BRIDGE_ADDRESS) {
@@ -34,8 +34,8 @@ export async function getSyncTree(txHash: Hash, publicClient: PublicClient, giga
     for (const syncTreeEvent of syncTreeEvents) {
         const leafIndexes = syncTreeEvent.args.leafIndexes
         const leafValues = syncTreeEvent.args.leafValues
-        let syncTreeLeafs:bigint[] = []
-        let prevLeafIndex=0n;
+        let syncTreeLeafs: bigint[] = []
+        let prevLeafIndex = 0n;
         for (let i = 0; i < leafIndexes.length; i++) {
             const gap = leafIndexes[i] - prevLeafIndex - 1n
             if (gap > 0n) {

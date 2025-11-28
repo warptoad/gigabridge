@@ -33,6 +33,7 @@ import {
   type WrappedFieldLike,
 } from '@aztec/aztec.js';
 import MainContractArtifactJson from '../../target/aztec_adapter_l2-Main.json' with { type: 'json' };
+//@ts-ignore
 export const MainContractArtifact = loadContractArtifact(MainContractArtifactJson as NoirCompiledContract);
 
 
@@ -109,6 +110,7 @@ export class MainContract extends ContractBase {
    * Returns this contract's artifact with public bytecode.
    */
   public static get artifactForPublic(): ContractArtifact {
+    //@ts-ignore
     return loadContractArtifactForPublic(MainContractArtifactJson as NoirCompiledContract);
   }
   
