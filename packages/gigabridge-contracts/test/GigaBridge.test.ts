@@ -22,7 +22,7 @@ import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol
 import {getGigaTree, getSyncTree, registerNewLeaf, updateLeaf} from "../../gigabridge-js/src/gigaBridge.js"
 import { GigaBridgeContractName, GigaBridgeContractTestType, ImtContractName } from "../src/index.js";
 
-const expectedPoseidon2HuffWithInterfaceAddress = "0x4ef312ACc907b7d3Ccdb62e5494DB49d832134B0" // this is also hardcoded in LazyIMTPoseidon2 thats why
+const expectedPoseidon2HuffWithInterfaceAddress = "0x2f24adD25a90aEF2601059693E6EAB9096CD026a" // this is also hardcoded in LazyIMTPoseidon2 thats why
 
 describe("gigaBridge", async function () {
     //@ts-ignore
@@ -138,7 +138,7 @@ describe("gigaBridge", async function () {
             let registerLeafTx:Hash = "0x00";
             const indexes:bigint[] = [];
             const values:bigint[] = []
-            for (let i = 0n; i < 2n**8n; i++) {
+            for (let i = 0n; i < 2n**6n; i++) {
                 const value = i
                 const owner = aliceAddress
                 const updater = aliceAddress

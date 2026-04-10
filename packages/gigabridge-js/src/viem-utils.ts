@@ -58,7 +58,7 @@ export async function queryEventInChunks<
 }): Promise<Log<bigint, number, false, TAbiEvent, true>[]> { 
     const address = contract.address;
     const abi = contract.abi;
-    
+
     lastBlock ??= await publicClient.getBlockNumber(); 
     let allEvents: Log<bigint, number, false, TAbiEvent, true>[] = [];
 
