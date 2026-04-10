@@ -17,7 +17,7 @@ export function minBigInt(a: bigint, b: bigint) {
  * Note: No concurrency implemented. This usually messes with rate limits on most RPCs. For local setups, just bump up chunkSize.
  *
  * @param {PublicClient} args.publicClient
- * @param {{ address: Address; abi: TAbi }} args.contract - the viem contract object (returned from getContract)
+ * @param {{ address: Address; abi: TAbi }} args.contract - the viem contract object (returned from getContract). Or just pass  {address: 0xUrContract; abi: ["ur", "abi"] }
  * @param {TEventName} args.eventName 
  * @param {GetLogsParameters<TAbiEvent>['args']} [args.eventFilterArgs] - Filters for indexed parameters (this is passed to publicClient.getLogs aka eth_getLog)
  * @param {bigint} [args.firstBlock] - Start block (inclusive). Defaults to 0n.
@@ -42,7 +42,7 @@ export async function queryEventInChunks<
     lastBlock,
     reverseOrder = false,
     maxEvents = Infinity,
-    chunkSize = 19999n,
+    chunkSize = 20000n,
     postQueryFilter,
 }: {
     publicClient: PublicClient;
@@ -69,8 +69,8 @@ export async function queryEventInChunks<
     }
 
     const scanLogic = async (index: bigint) => {
-        const start = index * chunkSize + firstBlock;
-        const stop = minBigInt(start + chunkSize, lastBlock);
+        const start = firstBlock + index * chunkSize;
+        const stop  = minBigInt(start + chunkSize - 1n, lastBlock);
         const logs = await publicClient.getLogs({
             address,
             event: eventAbi,
@@ -81,7 +81,7 @@ export async function queryEventInChunks<
         return logs;
     };
 
-    const range = lastBlock - firstBlock;
+    const range = lastBlock - firstBlock + 1n;;
     const numIters = Math.ceil(Number(range) / Number(chunkSize));
 
     if (reverseOrder) {
@@ -91,6 +91,7 @@ export async function queryEventInChunks<
             if (postQueryFilter) {
                 allEvents = postQueryFilter(allEvents)
             }
+            allEvents = allEvents.slice(-maxEvents);
             if (allEvents.length >= maxEvents) {console.log(`stopped scanning at chunk ${index}/${numIters-1}`);break};
         }
     } else {
@@ -100,6 +101,7 @@ export async function queryEventInChunks<
             if (postQueryFilter) {
                 allEvents = postQueryFilter(allEvents)
             }
+            allEvents = allEvents.slice(0, maxEvents);
             if (allEvents.length >= maxEvents) {console.log(`stopped scanning at chunk ${index}/${numIters-1}`);break};
         }
     }
