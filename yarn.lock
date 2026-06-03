@@ -4963,7 +4963,7 @@ poseidon-solidity@0.0.5:
   resolved "https://registry.yarnpkg.com/poseidon-solidity/-/poseidon-solidity-0.0.5.tgz#3f93e01cfe25f6d2f2fac49734fbb00961b84655"
   integrity sha512-NzrvSwHzvZgT4hvg2GyGqeR+UOU/eLSEt4wAoXEua+VaR7NTKKwx1X9bPlh1VMBEVEno+IWvkRBbidFGzTeAqQ==
 
-poseidon2-evm@1.0.0:
+poseidon2-evm@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/poseidon2-evm/-/poseidon2-evm-1.0.0.tgz#11786679c334d6e0e9396686ffad814d156c2fbc"
   integrity sha512-UAfEtDKny4XPqSjyKsQcCFZiop0Btuz/25H91ZvNLTtPRTVK57A5Z5gOnVNnVUzlP1aVFMJYYIMsLjPEcF2z6w==

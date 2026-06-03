@@ -13,9 +13,8 @@
     "resolveJsonModule": true,
     "types": ["node"],
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
     "paths": {
-      "*": [".//*"]
+      "*": ["./*"]
     }
   }
 }
