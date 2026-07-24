@@ -1,6 +1,6 @@
 
-import { IMT, IMTHashFunction, IMTNode } from "@zk-kit/imt"
-// import { LeanIMT } from "@zk-kit/lean-imt"
+import { IMTHashFunction, IMTNode } from "@zk-kit/imt"
+import { LeanIMT } from "@zk-kit/lean-imt"
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 //import GigaBridgeArtifact from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"} 
 import { IGigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/interfaces/IGigaBridge.sol/artifacts.js"
@@ -21,6 +21,8 @@ const gigaBridgeAbi = [...GigaBridgeArtifact.abi] as const;
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
 export const poseidon2IMTHashFunc:IMTHashFunction = (nodes:IMTNode[])=>poseidon2Hash(nodes as bigint[]) as IMTNode
+// fat-imt and skinny-imt are leanIMT forks, so they hash identically: no zero values, dynamic depth
+export const poseidon2LeanIMTHashFunc = (a:bigint, b:bigint) => poseidon2Hash([a, b])
 
 
 function getGigaBridgeDeploymentBlock(chainId:number) {
@@ -54,8 +56,7 @@ export async function getSyncTree({txHash, gigaBridge ,publicClient}:{txHash:Has
             syncTreeLeafs.push(leafValues[i])
             prevLeafIndex = leafIndexes[i]
         }
-        const depth = Math.ceil(Math.log2(syncTreeLeafs.length))
-        const tree = new IMT(poseidon2IMTHashFunc, depth, 0n, 2, syncTreeLeafs)
+        const tree = new LeanIMT(poseidon2LeanIMTHashFunc, syncTreeLeafs)
         trees.push(tree)
     }
 
@@ -100,7 +101,6 @@ export async function getGigaTree({gigaBridge, publicClient,deploymentBlock, blo
         }).reverse()
     }
     const nextLeafIndex = await gigaBridge.read.nextGigaIndex()
-    const depth = await gigaBridge.read.gigaDepth()
     // Can be further optimized by creating an event filter after each chunk that only scans for indexes that are already found
     // But idk if i should since maybe the amount of indexes can be too large?
     const events = await queryEventInChunks({
@@ -116,7 +116,7 @@ export async function getGigaTree({gigaBridge, publicClient,deploymentBlock, blo
 
     const sortedEvents = events.sort((a:any,b:any)=> Number(a.args.index - b.args.index) )
     const leafs = sortedEvents.map((event)=>event.args.value)
-    const tree = new IMT(poseidon2IMTHashFunc, Number(depth), 0n, 2, leafs)
+    const tree = new LeanIMT(poseidon2LeanIMTHashFunc, leafs)
     return tree
 }
 

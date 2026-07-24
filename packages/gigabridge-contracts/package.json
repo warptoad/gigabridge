@@ -18,7 +18,7 @@
     "@nomicfoundation/hardhat-viem-assertions": "3.0.7",
     "@nomicfoundation/ignition-core": "3.1.0",
     "@types/node": "^25.2.3",
-    "hardhat": "3.2.0",
+    "hardhat": "3.11.1",
     "typescript": "^5.9.3"
   },
   "dependencies": {
@@ -27,11 +27,12 @@
     "@aztec/kv-store": "2.0.3",
     "@aztec/noir-contracts.js": "2.0.3",
     "@aztec/pxe": "2.0.3",
+    "@warptoad/fat-imt.sol": "0.0.1",
+    "@warptoad/skinny-imt.sol": "0.0.1",
     "@zkpassport/poseidon2": "^0.6.2",
     "aztec-l1-contracts-hardhat-fix": "2.0.6",
-    "poseidon2-evm": "^1.0.0",
-    "viem": "^2.38.6",
-    "zk-kit-lazy-imt-custom-hash": "2.0.4"
+    "poseidon2-evm": "2.0.0",
+    "viem": "^2.38.6"
   },
   "files": [
     "dist",

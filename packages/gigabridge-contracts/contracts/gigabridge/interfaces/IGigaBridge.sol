@@ -32,8 +32,6 @@ interface IGigaBridge {
     // functions
     function registerNewLeaf(address _owner, address _updater, uint256 _value) external returns (uint256 _root, uint256 _index);
     function updateLeaf(uint256 _value, uint256 _index) external returns (uint256 _root);
-    function createPendingSyncTree(uint256 _syncTreeIndexSuggestion, uint256[] calldata _leafsValues, uint256[] calldata _leafsIndexes) external returns (uint256 _syncTreeIndex);
-    function processSyncTree(uint256 _syncTreeIndex, uint256 _maxPendingLeafs) external;
     function transferOwnerOfLeafIndex(uint256 _index, address _newOwner) external;
     function setUpdaterOfLeafIndex(uint256 _index, address _newUpdater) external;
 
@@ -41,7 +39,7 @@ interface IGigaBridge {
     function gigaRoot() external view returns (uint256);
     function nextGigaIndex() external view returns (uint256);
     function gigaDepth() external view returns (uint256);
-    function syncTreesData(uint256 _syncTreeIndex) external view returns (uint256 nextLeafIndex, uint256 nextPendingLeafsIndex, uint256 pendingLeafIndexLength, uint256 creationBlock);
+    // function syncTreesData(uint256 _syncTreeIndex) external view returns (uint256 nextLeafIndex, uint256 nextPendingLeafsIndex, uint256 pendingLeafIndexLength, uint256 creationBlock);
     function indexPerOwner(uint256 _index) external view returns (address);
     function indexPerUpdater(uint256 _index) external view returns (address);
     function rootHistory(uint256 _root) external view returns (RootType);

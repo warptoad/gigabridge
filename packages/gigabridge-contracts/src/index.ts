@@ -2,7 +2,8 @@
 
 import { ContractReturnType } from "@nomicfoundation/hardhat-viem/types";
 export const GigaBridgeContractName = "GigaBridge"
-export const ImtContractName = "LazyImtPoseidon2"
+export const FatImtContractName = "FatIMTPoseidon2FullNode"
+export const SkinnyImtContractName = "SkinnyIMTPoseidon2"
 export type GigaBridgeContractTestType = ContractReturnType<typeof GigaBridgeContractName>
 
 export { default as GigaBridgeArtifact } from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}

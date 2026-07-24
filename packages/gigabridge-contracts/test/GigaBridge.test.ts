@@ -20,9 +20,7 @@ import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseid
 import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 //TODO import this from index
 import {getGigaTree, getSyncTree, registerNewLeaf, updateLeaf} from "../../gigabridge-js/src/gigaBridge.js"
-import { GigaBridgeContractName, GigaBridgeContractTestType, ImtContractName } from "../src/index.js";
-
-const expectedPoseidon2HuffWithInterfaceAddress = "0x2f24adD25a90aEF2601059693E6EAB9096CD026a" // this is also hardcoded in LazyIMTPoseidon2 thats why
+import { FatImtContractName, GigaBridgeContractName, GigaBridgeContractTestType, SkinnyImtContractName } from "../src/index.js";
 
 describe("gigaBridge", async function () {
     //@ts-ignore
@@ -31,17 +29,14 @@ describe("gigaBridge", async function () {
     let gigaBridge: GigaBridgeContractTestType;
     
     beforeEach(async () => {
-        const [deployer] = await viem.getWalletClients()
-        const salt = "0x0000000000000000000000000000000000000000000000000000000000000000"
-        const {addresses:{poseidon2HuffWithInterfaceAddress}} = await deployPoseidon2HuffWithInterface(publicClient as any as PublicClient, deployer as WalletClient, salt, salt, false)
-        assert.equal(poseidon2HuffWithInterfaceAddress, expectedPoseidon2HuffWithInterfaceAddress, "poseidon2HuffWithInterfaceAddress not equal to expected value that is hardcoded in LazyImtPoseidon2.sol")
-
-        const LazyIMT = await viem.deployContract(ImtContractName)
-        gigaBridge = await viem.deployContract(GigaBridgeContractName,[32],{libraries:{LazyImtPoseidon2:LazyIMT.address}})
+        // no poseidon2 hasher contract to deploy anymore: fat-imt/skinny-imt hash with inlined yul (LibPoseidon2Yul)
+        const fatImt = await viem.deployContract(FatImtContractName)
+        const skinnyImt = await viem.deployContract(SkinnyImtContractName)
+        gigaBridge = await viem.deployContract(GigaBridgeContractName,[],{libraries:{FatIMTPoseidon2FullNode:fatImt.address, SkinnyIMTPoseidon2:skinnyImt.address}})
     })
 
     describe("syncTree", async function () {
-        it("Should create a sync tree in batches", async function () {
+        it("Should create a sync tree with a lott of zeros", async function () {
             const [alice, bob] = await viem.getWalletClients()
             const aliceAddress = (await alice.getAddresses())[0]
             const gigaBridgeAlice = getContract({abi:gigaBridge.abi, address:gigaBridge.address, client:{wallet:alice, public:publicClient}})
@@ -60,13 +55,9 @@ describe("gigaBridge", async function () {
             const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
             gigaRoot = await gigaBridgeAlice.read.gigaRoot()
 
-            const createSyncTreeTxHash = await gigaBridgeAlice.write.createPendingSyncTree([0n, [0n ,1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
+            const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([[0n ,1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
             
-            let processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 2n]) 
-            processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 2n])
-            processSyncTreeTxHash = await gigaBridgeAlice.write.processSyncTree([0n, 100n])
-
-            const processSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: processSyncTreeTxHash });
+            const processSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
             const argsNewRootEvent = (parseEventLogs({
                 abi: GigaBridgeArtifact.abi,
                 eventName: 'NewRoot',
@@ -138,7 +129,7 @@ describe("gigaBridge", async function () {
             let registerLeafTx:Hash = "0x00";
             const indexes:bigint[] = [];
             const values:bigint[] = []
-            for (let i = 0n; i < 2n**6n; i++) {
+            for (let i = 0n; i < 2n**5n; i++) {
                 const value = i
                 const owner = aliceAddress
                 const updater = aliceAddress
