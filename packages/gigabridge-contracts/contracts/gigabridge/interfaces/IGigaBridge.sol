@@ -14,13 +14,11 @@ interface IGigaBridge {
         uint256 amountLeafs;
         uint256 creationBlock;
     }
-
-    event LeafUpdated(uint256 indexed index, uint256 indexed value);
     event LeafRegistered(address indexed owner, address indexed updater, uint256 indexed index);
-    event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes, uint256 indexed syncTreeIndex);
-    event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes);
-    event NewRoot(uint256 indexed root, uint256 depth, RootType rootType);
-    event NewRoot(uint256 indexed root, uint256 depth, RootType rootType, uint256 syncTreeCreationBlock); // syncTreeCreationBlock is here so you can find out what leafs it was made with by finding NewPendingSyncTree. This narrow down the search to one block and in most cases 1 event!
+    //event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes);
+
+    // event NewRoot(uint256 indexed root, uint256 depth, RootType rootType);
+    // event NewRoot(uint256 indexed root, uint256 depth, RootType rootType, uint256 syncTreeCreationBlock); // syncTreeCreationBlock is here so you can find out what leafs it was made with by finding NewPendingSyncTree. This narrow down the search to one block and in most cases 1 event!
 
 
     enum RootType {

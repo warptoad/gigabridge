@@ -1,19 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {FatIMTPoseidon2FullNode} from "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2FullNode.sol";
-import {FatIMTDataFullNode} from "@warptoad/fat-imt.sol/InternalFatIMTStorage.sol";
-import {SkinnyIMTPoseidon2} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2.sol";
-import {SkinnyIMTData} from "@warptoad/skinny-imt.sol/InternalSkinnyIMTCore.sol";
+import {FatIMTPoseidon2WriteStorage, FatIMTDataStorage} from "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2WriteStorage.sol";
+import {SkinnyIMTPoseidon2WriteStorage, SkinnyIMTDataStorage} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2WriteStorage.sol";
+import {FatIMTPoseidon2Read} from "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2Read.sol";
+import {SkinnyIMTPoseidon2Read} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2Read.sol";
 import {IGigaBridge} from "./interfaces/IGigaBridge.sol";
+
+import {SkinnyIMTReadableStorage} from "@warptoad/skinny-imt.sol/SkinnyIMTReadableStorage.sol";
+import {FatIMTReadableStorage} from "@warptoad/fat-imt.sol/FatIMTReadableStorage.sol";
+import {IIMTEvents} from "@warptoad/fat-imt.sol/interfaces/IIMTEvents.sol";
 
 // NOTE: fat-imt/skinny-imt emit their own NewLeaf/RepeatedLeafs/UpdatedLeaf events on top of the ones
 // emitted here. That is double emitting, it will be cleaned up once the js syncing logic moves over to the lib events.
 // TODO skinny-imt can run in memory, so tempSyncTree/syncTrees don't need to touch storage at all.
 
-contract GigaBridge is IGigaBridge {
-    FatIMTDataFullNode gigaTree;
-    SkinnyIMTData tempSyncTree; // resets after each tx, will be moved into memory in future version
+contract GigaBridge is
+    IGigaBridge,
+    SkinnyIMTReadableStorage,
+    FatIMTReadableStorage,
+    IIMTEvents
+{
+    FatIMTDataStorage gigaTree;
+    SkinnyIMTDataStorage syncTree; // resets after each tx, will be moved into memory in future version
+
+    uint256 public gigaTreeId;
+    uint256 public syncTreeId;
 
     mapping(uint256 => RootType) public rootHistory; // used to check if a sync/gigaRoot has existed in the past
     mapping(uint256 => mapping(uint256 => bool)) leafHistory; // index => leafValue => bool
@@ -22,35 +34,59 @@ contract GigaBridge is IGigaBridge {
     mapping(uint256 => address) public indexPerUpdater;
 
     constructor() {
-        FatIMTPoseidon2FullNode.init(gigaTree);
+        gigaTreeId = FatIMTPoseidon2WriteStorage.init(gigaTree);
+        syncTreeId = SkinnyIMTPoseidon2WriteStorage.init(syncTree);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    )
+        public
+        view
+        override(FatIMTReadableStorage, SkinnyIMTReadableStorage)
+        returns (bool)
+    {
+        // this calls FatIMTReadableStorage.supportsInterface(), which contains a super in it as well which then will
+        // call the skinny variant since it is also inherited
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _getFatStorageTree(uint256) internal view override returns (FatIMTDataStorage storage) {
+        return gigaTree;
+    }
+
+    function _getSkinnyStorageTree(uint256) internal view override returns (SkinnyIMTDataStorage storage) {
+        return syncTree;
     }
 
     function gigaRoot() public view returns (uint256) {
-        return FatIMTPoseidon2FullNode.root(gigaTree);
+        return FatIMTPoseidon2Read.root(gigaTree.treeData);
     }
 
     function nextGigaIndex() public view returns (uint256) {
         // TODO this guy is obv not skinny, maybe rename that to treeData?
-        return gigaTree.skinnyData.size;
+        return gigaTree.treeData.size;
     }
 
     function gigaDepth() public view returns (uint256) {
-        return gigaTree.skinnyData.depth;
+        return gigaTree.treeData.depth;
     }
 
     /// @dev skinny/fat-imt have no reset(), but zeroing size+depth is enough: every `sideNodes` slot a
     /// later insert reads is written by an earlier insert of that same run. treeId is kept so the tree stays initialized.
     // TODO is this safe? Should we add this to skinny fat?
-    function _resetSyncTree(SkinnyIMTData storage _syncTree) internal {
-        _syncTree.size = 0;
-        _syncTree.depth = 0;
+    function _resetSyncTree(SkinnyIMTDataStorage storage _syncTree) internal {
+        _syncTree.treeData.size = 0;
+        _syncTree.treeData.depth = 0;
     }
 
     /// @dev trees are lazily initialized, syncTrees live in a mapping so they can't be initialized in the constructor.
     // TODO this can be nicer?
-    function _initSyncTreeIfNeeded(SkinnyIMTData storage _syncTree) internal {
-        if (_syncTree.treeId == 0) {
-            SkinnyIMTPoseidon2.init(_syncTree);
+    function _initSyncTreeIfNeeded(
+        SkinnyIMTDataStorage storage _syncTree
+    ) internal {
+        if (_syncTree.treeData.treeId == 0) {
+            SkinnyIMTPoseidon2WriteStorage.init(_syncTree);
         }
     }
 
@@ -60,13 +96,12 @@ contract GigaBridge is IGigaBridge {
         uint256 _value
     ) public override returns (uint256, uint256) {
         // insert leaf
-        (uint256 _root, uint256 _index) = FatIMTPoseidon2FullNode.insert(
+        (uint256 _root, uint256 _index) = FatIMTPoseidon2WriteStorage.insert(
             gigaTree,
             _value
         );
         leafHistory[_index][_value] = true;
         // TODO remove
-        emit LeafUpdated(_index, _value);
         emit LeafRegistered(_owner, _updater, _index);
 
         // track owner ship
@@ -74,12 +109,11 @@ contract GigaBridge is IGigaBridge {
         indexPerUpdater[_index] = _updater;
 
         // fat-imt grows its depth on insert, just mirror it
-        uint256 _gigaRootDepth = gigaTree.skinnyData.depth;
+        // uint256 _gigaRootDepth = gigaTree.treeData.depth;
 
         // update root
         rootHistory[_root] = RootType.GIGA_ROOT;
         // why depth in the event???
-        emit NewRoot(_root, _gigaRootDepth, RootType.GIGA_ROOT);
         return (_root, _index);
     }
 
@@ -98,15 +132,17 @@ contract GigaBridge is IGigaBridge {
         );
 
         // update leaf
-        (_root, ) = FatIMTPoseidon2FullNode.update(gigaTree, _value, _index);
+        (_root, ) = FatIMTPoseidon2WriteStorage.update(
+            gigaTree,
+            _value,
+            _index
+        );
         leafHistory[_index][_value] = true;
         // TODO remove
-        emit LeafUpdated(_index, _value);
 
         // update root
         rootHistory[_root] = RootType.GIGA_ROOT;
         // TODO add NewRoot to skinny and fat?
-        emit NewRoot(_root, gigaDepth(), RootType.GIGA_ROOT);
         return _root;
     }
 
@@ -115,7 +151,7 @@ contract GigaBridge is IGigaBridge {
         uint256[] calldata _leafsIndexes
     ) public {
         //TODO let skinnyIMT run on memory. Then boom bam, merkle root for a fraction of the gas!!!!
-        _initSyncTreeIfNeeded(tempSyncTree);
+        _initSyncTreeIfNeeded(syncTree);
 
         uint256 _prevLeafIndex = 0;
         for (uint256 i = 0; i < _leafsValues.length; i++) {
@@ -124,23 +160,20 @@ contract GigaBridge is IGigaBridge {
 
             // pendingLeaf.index bigger? that means there is a gap, fill it with zeros!!
             if (leafIndex > _prevLeafIndex + 1) {
-                SkinnyIMTPoseidon2.insertManyRepeated(
-                    tempSyncTree,
+                SkinnyIMTPoseidon2WriteStorage.insertManyRepeated(
+                    syncTree,
                     0,
                     leafIndex - _prevLeafIndex - 1
                 );
             }
             _prevLeafIndex = leafIndex;
             // finally we insert our pending leaf
-            SkinnyIMTPoseidon2.insert(tempSyncTree, leafValue);
+            SkinnyIMTPoseidon2WriteStorage.insert(syncTree, leafValue);
         }
 
-        uint256 _root = SkinnyIMTPoseidon2.root(tempSyncTree);
-        uint256 _depth = tempSyncTree.depth;
+        uint256 _root = SkinnyIMTPoseidon2Read.root(syncTree.treeData);
         addSyncRootToHistory(_root);
-        emit NewRoot(_root, _depth, RootType.SYNC_ROOT);
-        emit NewSyncTree(_leafsValues, _leafsIndexes);
-        _resetSyncTree(tempSyncTree);
+        _resetSyncTree(syncTree);
     }
 
     function addSyncRootToHistory(uint256 _root) internal {

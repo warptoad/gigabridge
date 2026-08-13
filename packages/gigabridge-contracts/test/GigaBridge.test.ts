@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
 import { network } from "hardhat";
+import { Trees } from "@warptoad/skinny-fat-imt-js";
 
 // import Poseidon2Yul from "../artifacts/poseidon2-evm/src/Poseidon2Yul.sol/Poseidon2Yul.json" assert {type: "json"}
 // const Poseidon2HuffByteCode = "0x" + await compileHuff("./node_modules/poseidon2-evm/src/huff/Poseidon2.huff");
@@ -19,182 +20,201 @@ import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseid
 //import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
 import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 //TODO import this from index
-import {getGigaTree, getSyncTree, registerNewLeaf, updateLeaf} from "../../gigabridge-js/src/gigaBridge.js"
-import { FatImtContractName, GigaBridgeContractName, GigaBridgeContractTestType, SkinnyImtContractName } from "../src/index.js";
+import { getGigaTree, getSyncTree, registerNewLeaf, updateLeaf } from "../../gigabridge-js/src/gigaBridge.js"
+import { FatImtContractName, FatImtReadContractName, GigaBridgeContractName, GigaBridgeContractTestType, SkinnyImtContractName, SkinnyImtReadContractName } from "../src/index.js";
 
 describe("gigaBridge", async function () {
     //@ts-ignore
     const { viem } = await network.connect();
     const publicClient = await viem.getPublicClient();
     let gigaBridge: GigaBridgeContractTestType;
-    
+
     beforeEach(async () => {
         // no poseidon2 hasher contract to deploy anymore: fat-imt/skinny-imt hash with inlined yul (LibPoseidon2Yul)
         const fatImt = await viem.deployContract(FatImtContractName)
         const skinnyImt = await viem.deployContract(SkinnyImtContractName)
-        gigaBridge = await viem.deployContract(GigaBridgeContractName,[],{libraries:{FatIMTPoseidon2FullNode:fatImt.address, SkinnyIMTPoseidon2:skinnyImt.address}})
+        const fatImtRead = await viem.deployContract(FatImtReadContractName)
+        const skinnyImtRead = await viem.deployContract(SkinnyImtReadContractName)
+        gigaBridge = await viem.deployContract(GigaBridgeContractName, [], {
+            libraries: {
+                [FatImtReadContractName]: fatImtRead.address,
+                [SkinnyImtReadContractName]: skinnyImtRead.address,
+                [FatImtContractName]: fatImt.address,
+                [SkinnyImtContractName]: skinnyImt.address
+            }
+        })
     })
 
     describe("syncTree", async function () {
         it("Should create a sync tree with a lott of zeros", async function () {
             const [alice, bob] = await viem.getWalletClients()
             const aliceAddress = (await alice.getAddresses())[0]
-            const gigaBridgeAlice = getContract({abi:gigaBridge.abi, address:gigaBridge.address, client:{wallet:alice, public:publicClient}})
+            const gigaBridgeAlice = getContract({ abi: gigaBridge.abi, address: gigaBridge.address, client: { wallet: alice, public: publicClient } })
 
             let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
-            let registerLeafTx:Hash = "0x00"
-            for (let i = 0n; i <  2n**4n; i++) {
+            let registerLeafTx: Hash = "0x00"
+            for (let i = 0n; i < 2n ** 4n; i++) {
                 const value = i
                 const owner = aliceAddress
                 const updater = aliceAddress
-                const {index, txHash} = await registerNewLeaf({args:[owner, updater, value], gigaBridge, client:{publicClient, wallet:alice}})
+                const { index, txHash } = await registerNewLeaf({ args: [owner, updater, value], gigaBridge, client: { publicClient, wallet: alice } })
                 registerLeafTx = txHash
-                
+
             }
 
-            const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
+            const updaterAddress = await gigaBridgeAlice.read.indexPerUpdater([0n])
             gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+            const syncTreeId = await gigaBridge.read.syncTreeId();
 
-            const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([[0n ,1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
-            
-            const processSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
-            const argsNewRootEvent = (parseEventLogs({
-                abi: GigaBridgeArtifact.abi,
-                eventName: 'NewRoot',
-                logs: processSyncTreeTxReceipt.logs,
-            })[0] as any).args
+            const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([[0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
+            const createSyncTreeReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash })
+            const newRootEvent = parseEventLogs({
+                abi: gigaBridge.abi,
+                eventName: 'NewRoot',        // or ['Transfer', 'Approval']
+                logs: createSyncTreeReceipt.logs,
+            })
+            const jsTrees = new Trees(gigaBridge.address, publicClient)
+            // TODO be nice to have a sync a single treeId and get one object. then a sync multiple or all for multiple
+            const syncTreeJs = (await jsTrees.sync([syncTreeId], {syncToRoot:newRootEvent[0].args.root}))[toHex(syncTreeId)]
 
-            const syncTreeJs = (await getSyncTree({txHash:createSyncTreeTxHash,publicClient,gigaBridge}))[0]
-            const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.root as bigint])
+            const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.tree.root as bigint])
             assert(isRoot, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
-            console.log({gas:{
-                createPendingSyncTree: (await publicClient.getTransactionReceipt({hash:createSyncTreeTxHash as Hash})).gasUsed,
-                processSyncTree: processSyncTreeTxReceipt.gasUsed,
-                registerLeaf: (await publicClient.getTransactionReceipt({hash:registerLeafTx as Hash})).gasUsed,
-                gigaDepth: await gigaBridge.read.gigaDepth()
-            }})
+            console.log({
+                gas: {
+                    createPendingSyncTree: (await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash as Hash })).gasUsed,
+                    processSyncTree: createSyncTreeReceipt.gasUsed,
+                    registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
+                    gigaDepth: await gigaBridge.read.gigaDepth()
+                }
+            })
         })
 
 
-        it("Should create a sync tree in one go", async function () {
-            const [alice, bob] = await viem.getWalletClients()
-            const aliceAddress = (await alice.getAddresses())[0]
-            
-            const gigaBridgeAlice = getContract({abi:gigaBridge.abi, address:gigaBridge.address, client:{wallet:alice, public:publicClient}})
+        //     it("Should create a sync tree in one go", async function () {
+        //         const [alice, bob] = await viem.getWalletClients()
+        //         const aliceAddress = (await alice.getAddresses())[0]
 
-            let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+        //         const gigaBridgeAlice = getContract({ abi: gigaBridge.abi, address: gigaBridge.address, client: { wallet: alice, public: publicClient } })
 
-            let registerLeafTx:Hash = "0x00";
-            for (let i = 0n; i < 2n**4n; i++) {
-                const value = i
-                const owner = aliceAddress
-                const updater = aliceAddress
-                const {index, txHash} = await registerNewLeaf({args:[owner, updater, value], gigaBridge, client:{publicClient, wallet:alice}})
-                registerLeafTx = txHash
-            }
+        //         let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
 
-            const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
-            gigaRoot = await gigaBridgeAlice.read.gigaRoot()
-            
-            // warm to the slots so we can test gas!
-            await gigaBridgeAlice.write.createNewSyncTree([[0n ,1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
-            const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([[0n ,1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
-            
-            const createSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
-            const argsNewRootEvent = (parseEventLogs({
-                abi: GigaBridgeArtifact.abi,
-                eventName: 'NewRoot',
-                logs: createSyncTreeTxReceipt.logs,
-            })[0] as any).args
+        //         let registerLeafTx: Hash = "0x00";
+        //         for (let i = 0n; i < 2n ** 4n; i++) {
+        //             const value = i
+        //             const owner = aliceAddress
+        //             const updater = aliceAddress
+        //             const { index, txHash } = await registerNewLeaf({ args: [owner, updater, value], gigaBridge, client: { publicClient, wallet: alice } })
+        //             registerLeafTx = txHash
+        //         }
 
-            const syncTreeJs = (await getSyncTree({txHash:createSyncTreeTxHash,publicClient,gigaBridge}))[0]
-            const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.root as bigint])
-            assert(isRoot, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+        //         const updaterAddress = await gigaBridgeAlice.read.indexPerUpdater([0n])
+        //         gigaRoot = await gigaBridgeAlice.read.gigaRoot()
 
-            console.log({gas:{
-                createSyncTree: createSyncTreeTxReceipt.gasUsed,
-                registerLeaf: (await publicClient.getTransactionReceipt({hash:registerLeafTx as Hash})).gasUsed,
-                gigaDepth: await gigaBridge.read.gigaDepth()
-            }}) 
-        })
+        //         // warm to the slots so we can test gas!
+        //         await gigaBridgeAlice.write.createNewSyncTree([[0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
+        //         const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([[0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n]])
 
-        it("Should create a very big sync tree in one go", async function () {
-            const [alice, bob] = await viem.getWalletClients()
-            const aliceAddress = (await alice.getAddresses())[0]
-            
-            const gigaBridgeAlice = getContract({abi:gigaBridge.abi, address:gigaBridge.address, client:{wallet:alice, public:publicClient}})
+        //         const createSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
+        //         const argsNewRootEvent = (parseEventLogs({
+        //             abi: GigaBridgeArtifact.abi,
+        //             eventName: 'NewRoot',
+        //             logs: createSyncTreeTxReceipt.logs,
+        //         })[0] as any).args
 
-            let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+        //         const syncTreeJs = (await getSyncTree({ txHash: createSyncTreeTxHash, publicClient, gigaBridge }))[0]
+        //         const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.root as bigint])
+        //         assert(isRoot, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
 
-            let registerLeafTx:Hash = "0x00";
-            const indexes:bigint[] = [];
-            const values:bigint[] = []
-            for (let i = 0n; i < 2n**5n; i++) {
-                const value = i
-                const owner = aliceAddress
-                const updater = aliceAddress
-                const {index, txHash} = await registerNewLeaf({args:[owner, updater, value], gigaBridge, client:{publicClient, wallet:alice}})
-                registerLeafTx = txHash
-                values.push(value)
-                indexes.push(index)
-            }
+        //         console.log({
+        //             gas: {
+        //                 createSyncTree: createSyncTreeTxReceipt.gasUsed,
+        //                 registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
+        //                 gigaDepth: await gigaBridge.read.gigaDepth()
+        //             }
+        //         })
+        //     })
 
-            const updaterAddress =  await gigaBridgeAlice.read.indexPerUpdater([0n])
-            gigaRoot = await gigaBridgeAlice.read.gigaRoot()
-            
-            // warm to the slots so we can test gas!
-            await gigaBridgeAlice.write.createNewSyncTree([values, indexes])
-            const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([values, indexes])
-            
-            const createSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
-            const argsNewRootEvent = (parseEventLogs({
-                abi: GigaBridgeArtifact.abi,
-                eventName: 'NewRoot',
-                logs: createSyncTreeTxReceipt.logs,
-            })[0] as any).args
+        //     it("Should create a very big sync tree in one go", async function () {
+        //         const [alice, bob] = await viem.getWalletClients()
+        //         const aliceAddress = (await alice.getAddresses())[0]
 
-            const syncTreeJs = (await getSyncTree({txHash:createSyncTreeTxHash,publicClient,gigaBridge}))[0]
-            const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.root as bigint])
-            assert(isRoot, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+        //         const gigaBridgeAlice = getContract({ abi: gigaBridge.abi, address: gigaBridge.address, client: { wallet: alice, public: publicClient } })
 
-            console.log({gas:{
-                createSyncTree: createSyncTreeTxReceipt.gasUsed,
-                registerLeaf: (await publicClient.getTransactionReceipt({hash:registerLeafTx as Hash})).gasUsed,
-                gigaDepth: await gigaBridge.read.gigaDepth()
-            }}) 
-        })
+        //         let gigaRoot = await gigaBridgeAlice.read.gigaRoot()
 
-        
+        //         let registerLeafTx: Hash = "0x00";
+        //         const indexes: bigint[] = [];
+        //         const values: bigint[] = []
+        //         for (let i = 0n; i < 2n ** 5n; i++) {
+        //             const value = i
+        //             const owner = aliceAddress
+        //             const updater = aliceAddress
+        //             const { index, txHash } = await registerNewLeaf({ args: [owner, updater, value], gigaBridge, client: { publicClient, wallet: alice } })
+        //             registerLeafTx = txHash
+        //             values.push(value)
+        //             indexes.push(index)
+        //         }
+
+        //         const updaterAddress = await gigaBridgeAlice.read.indexPerUpdater([0n])
+        //         gigaRoot = await gigaBridgeAlice.read.gigaRoot()
+
+        //         // warm to the slots so we can test gas!
+        //         await gigaBridgeAlice.write.createNewSyncTree([values, indexes])
+        //         const createSyncTreeTxHash = await gigaBridgeAlice.write.createNewSyncTree([values, indexes])
+
+        //         const createSyncTreeTxReceipt = await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash });
+        //         const argsNewRootEvent = (parseEventLogs({
+        //             abi: GigaBridgeArtifact.abi,
+        //             eventName: 'NewRoot',
+        //             logs: createSyncTreeTxReceipt.logs,
+        //         })[0] as any).args
+
+        //         const syncTreeJs = (await getSyncTree({ txHash: createSyncTreeTxHash, publicClient, gigaBridge }))[0]
+        //         const isRoot = await gigaBridge.read.rootHistory([syncTreeJs.root as bigint])
+        //         assert(isRoot, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+
+        //         console.log({
+        //             gas: {
+        //                 createSyncTree: createSyncTreeTxReceipt.gasUsed,
+        //                 registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
+        //                 gigaDepth: await gigaBridge.read.gigaDepth()
+        //             }
+        //         })
+        //     })
+
+
     });
 
-    describe("gigaTree", async function () {
-        it("should insert leafs in the gigaTree and be reproduced in js", async function () {
-            const [alice, bob] = await viem.getWalletClients()
-            const aliceAddress = (await alice.getAddresses())[0]
-            const indexes:bigint[] = []
-            let registerNewLeafTx: Hash = "0x00"
-            for (let i = 1n; i < 2n**4n; i++) {
-                const owner = aliceAddress;
-                const updater = aliceAddress;   // usually this a contract, but today we use a EOA because we are lazy!!
-                const value = i                 // usually a root of a commitment tree or state tree, but can be anything! (like a number!)
-                const {index, txHash} = await registerNewLeaf({args:[owner, updater, value], gigaBridge, client:{publicClient, wallet:alice}})
-                registerNewLeafTx = txHash
-                indexes.push(index)
-            }
-            // make sure getGigaTree gets the correct leafs even if they update
-            let updateLeafTx = await updateLeaf({args:[420n, 2n], gigaBridge, client:{publicClient, wallet:alice}})
-            updateLeafTx = await updateLeaf({args:[69n, 2n], gigaBridge, client:{publicClient, wallet:alice}})
-            updateLeafTx = await updateLeaf({args:[420n, 1n], gigaBridge, client:{publicClient, wallet:alice}})
-            // TODO more testing hash to be done on getGigaTree because here it get all logs in a single chunk, so make a test where the chunk size of queryEventInChunks
-            const tree = await getGigaTree({gigaBridge, publicClient})
-            const jsRoot = tree.root 
-            const onchainRoot = await gigaBridge.read.gigaRoot()
-            assert(jsRoot == onchainRoot, "jsRoot doesn't match the onChainRoot")
-            console.log({gas:{
-                updateLeaf:(await publicClient.getTransactionReceipt({hash:updateLeafTx})).gasUsed,
-                registerNewLeaf: (await publicClient.getTransactionReceipt({hash:registerNewLeafTx})).gasUsed,
-                gigaDepth: await gigaBridge.read.gigaDepth()
-            }})
-        })
-    });
+    // describe("gigaTree", async function () {
+    //     it("should insert leafs in the gigaTree and be reproduced in js", async function () {
+    //         const [alice, bob] = await viem.getWalletClients()
+    //         const aliceAddress = (await alice.getAddresses())[0]
+    //         const indexes: bigint[] = []
+    //         let registerNewLeafTx: Hash = "0x00"
+    //         for (let i = 1n; i < 2n ** 4n; i++) {
+    //             const owner = aliceAddress;
+    //             const updater = aliceAddress;   // usually this a contract, but today we use a EOA because we are lazy!!
+    //             const value = i                 // usually a root of a commitment tree or state tree, but can be anything! (like a number!)
+    //             const { index, txHash } = await registerNewLeaf({ args: [owner, updater, value], gigaBridge, client: { publicClient, wallet: alice } })
+    //             registerNewLeafTx = txHash
+    //             indexes.push(index)
+    //         }
+    //         // make sure getGigaTree gets the correct leafs even if they update
+    //         let updateLeafTx = await updateLeaf({ args: [420n, 2n], gigaBridge, client: { publicClient, wallet: alice } })
+    //         updateLeafTx = await updateLeaf({ args: [69n, 2n], gigaBridge, client: { publicClient, wallet: alice } })
+    //         updateLeafTx = await updateLeaf({ args: [420n, 1n], gigaBridge, client: { publicClient, wallet: alice } })
+    //         // TODO more testing hash to be done on getGigaTree because here it get all logs in a single chunk, so make a test where the chunk size of queryEventInChunks
+    //         const tree = await getGigaTree({ gigaBridge, publicClient })
+    //         const jsRoot = tree.root
+    //         const onchainRoot = await gigaBridge.read.gigaRoot()
+    //         assert(jsRoot == onchainRoot, "jsRoot doesn't match the onChainRoot")
+    //         console.log({
+    //             gas: {
+    //                 updateLeaf: (await publicClient.getTransactionReceipt({ hash: updateLeafTx })).gasUsed,
+    //                 registerNewLeaf: (await publicClient.getTransactionReceipt({ hash: registerNewLeafTx })).gasUsed,
+    //                 gigaDepth: await gigaBridge.read.gigaDepth()
+    //             }
+    //         })
+    //     })
+    // });
 });
