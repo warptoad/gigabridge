@@ -51,11 +51,13 @@ contract GigaBridge is
         return super.supportsInterface(interfaceId);
     }
 
-    function _getFatStorageTree(uint256) internal view override returns (FatIMTDataStorage storage) {
+    function _getFatStorageTree(uint256 _treeId) internal view override returns (FatIMTDataStorage storage) {
+        if (_treeId != gigaTreeId) revert UnknownTreeId(_treeId);
         return gigaTree;
     }
 
-    function _getSkinnyStorageTree(uint256) internal view override returns (SkinnyIMTDataStorage storage) {
+    function _getSkinnyStorageTree(uint256 _treeId) internal view override returns (SkinnyIMTDataStorage storage) {
+        if (_treeId != syncTreeId) revert UnknownTreeId(_treeId);
         return syncTree;
     }
 
@@ -76,18 +78,7 @@ contract GigaBridge is
     /// later insert reads is written by an earlier insert of that same run. treeId is kept so the tree stays initialized.
     // TODO is this safe? Should we add this to skinny fat?
     function _resetSyncTree(SkinnyIMTDataStorage storage _syncTree) internal {
-        _syncTree.treeData.size = 0;
-        _syncTree.treeData.depth = 0;
-    }
-
-    /// @dev trees are lazily initialized, syncTrees live in a mapping so they can't be initialized in the constructor.
-    // TODO this can be nicer?
-    function _initSyncTreeIfNeeded(
-        SkinnyIMTDataStorage storage _syncTree
-    ) internal {
-        if (_syncTree.treeData.treeId == 0) {
-            SkinnyIMTPoseidon2WriteStorage.init(_syncTree);
-        }
+        SkinnyIMTPoseidon2WriteStorage.reset(_syncTree);
     }
 
     function registerNewLeaf(
@@ -150,9 +141,6 @@ contract GigaBridge is
         uint256[] calldata _leafsValues,
         uint256[] calldata _leafsIndexes
     ) public {
-        //TODO let skinnyIMT run on memory. Then boom bam, merkle root for a fraction of the gas!!!!
-        _initSyncTreeIfNeeded(syncTree);
-
         uint256 _prevLeafIndex = 0;
         for (uint256 i = 0; i < _leafsValues.length; i++) {
             uint256 leafValue = _leafsValues[i];
@@ -173,7 +161,7 @@ contract GigaBridge is
 
         uint256 _root = SkinnyIMTPoseidon2Read.root(syncTree.treeData);
         addSyncRootToHistory(_root);
-        _resetSyncTree(syncTree);
+        SkinnyIMTPoseidon2WriteStorage.reset(syncTree);
     }
 
     function addSyncRootToHistory(uint256 _root) internal {

@@ -14,6 +14,9 @@ interface IGigaBridge {
         uint256 amountLeafs;
         uint256 creationBlock;
     }
+    /// @dev thrown by the fat/skinny tree resolvers when asked for an id that is neither tree
+    error UnknownTreeId(uint256 treeId);
+
     event LeafRegistered(address indexed owner, address indexed updater, uint256 indexed index);
     //event NewSyncTree(uint256[] leafValues, uint256[] leafIndexes);
 
