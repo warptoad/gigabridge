@@ -2,12 +2,12 @@
 pragma solidity ^0.8.28;
 
 import {FatIMTPoseidon2WriteStorage, FatIMTDataStorage} from "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2WriteStorage.sol";
-import {SkinnyIMTPoseidon2WriteStorage, SkinnyIMTDataStorage} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2WriteStorage.sol";
+import {SkinnyIMTPoseidon2WriteEvent, SkinnyIMTDataEvent} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2WriteEvent.sol";
 import {FatIMTPoseidon2Read} from "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2Read.sol";
 import {SkinnyIMTPoseidon2Read} from "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2Read.sol";
 import {IGigaBridge} from "./interfaces/IGigaBridge.sol";
 
-import {SkinnyIMTReadableStorage} from "@warptoad/skinny-imt.sol/SkinnyIMTReadableStorage.sol";
+import {SkinnyIMTReadableEvent} from "@warptoad/skinny-imt.sol/SkinnyIMTReadableEvent.sol";
 import {FatIMTReadableStorage} from "@warptoad/fat-imt.sol/FatIMTReadableStorage.sol";
 import {IIMTEvents} from "@warptoad/fat-imt.sol/interfaces/IIMTEvents.sol";
 
@@ -17,12 +17,12 @@ import {IIMTEvents} from "@warptoad/fat-imt.sol/interfaces/IIMTEvents.sol";
 
 contract GigaBridge is
     IGigaBridge,
-    SkinnyIMTReadableStorage,
+    SkinnyIMTReadableEvent,
     FatIMTReadableStorage,
     IIMTEvents
 {
     FatIMTDataStorage gigaTree;
-    SkinnyIMTDataStorage syncTree; // resets after each tx, will be moved into memory in future version
+    SkinnyIMTDataEvent syncTree; // resets after each tx, will be moved into memory in future version
 
     uint256 public gigaTreeId;
     uint256 public syncTreeId;
@@ -35,7 +35,7 @@ contract GigaBridge is
 
     constructor() {
         gigaTreeId = FatIMTPoseidon2WriteStorage.init(gigaTree);
-        syncTreeId = SkinnyIMTPoseidon2WriteStorage.init(syncTree);
+        syncTreeId = SkinnyIMTPoseidon2WriteEvent.init(syncTree);
     }
 
     function supportsInterface(
@@ -43,7 +43,7 @@ contract GigaBridge is
     )
         public
         view
-        override(FatIMTReadableStorage, SkinnyIMTReadableStorage)
+        override(FatIMTReadableStorage, SkinnyIMTReadableEvent)
         returns (bool)
     {
         // this calls FatIMTReadableStorage.supportsInterface(), which contains a super in it as well which then will
@@ -56,7 +56,7 @@ contract GigaBridge is
         return gigaTree;
     }
 
-    function _getSkinnyStorageTree(uint256 _treeId) internal view override returns (SkinnyIMTDataStorage storage) {
+    function _getSkinnyEventTree(uint256 _treeId) internal view override returns (SkinnyIMTDataEvent storage) {
         if (_treeId != syncTreeId) revert UnknownTreeId(_treeId);
         return syncTree;
     }
@@ -77,8 +77,8 @@ contract GigaBridge is
     /// @dev skinny/fat-imt have no reset(), but zeroing size+depth is enough: every `sideNodes` slot a
     /// later insert reads is written by an earlier insert of that same run. treeId is kept so the tree stays initialized.
     // TODO is this safe? Should we add this to skinny fat?
-    function _resetSyncTree(SkinnyIMTDataStorage storage _syncTree) internal {
-        SkinnyIMTPoseidon2WriteStorage.reset(_syncTree);
+    function _resetSyncTree(SkinnyIMTDataEvent storage _syncTree) internal {
+        SkinnyIMTPoseidon2WriteEvent.reset(_syncTree);
     }
 
     function registerNewLeaf(
@@ -148,7 +148,7 @@ contract GigaBridge is
 
             // pendingLeaf.index bigger? that means there is a gap, fill it with zeros!!
             if (leafIndex > _prevLeafIndex + 1) {
-                SkinnyIMTPoseidon2WriteStorage.insertManyRepeated(
+                SkinnyIMTPoseidon2WriteEvent.insertManyRepeated(
                     syncTree,
                     0,
                     leafIndex - _prevLeafIndex - 1
@@ -156,12 +156,12 @@ contract GigaBridge is
             }
             _prevLeafIndex = leafIndex;
             // finally we insert our pending leaf
-            SkinnyIMTPoseidon2WriteStorage.insert(syncTree, leafValue);
+            SkinnyIMTPoseidon2WriteEvent.insert(syncTree, leafValue);
         }
 
-        uint256 _root = SkinnyIMTPoseidon2Read.root(syncTree.treeData);
+        uint256 _root = SkinnyIMTPoseidon2Read.root(syncTree);
         addSyncRootToHistory(_root);
-        SkinnyIMTPoseidon2WriteStorage.reset(syncTree);
+        SkinnyIMTPoseidon2WriteEvent.reset(syncTree);
     }
 
     function addSyncRootToHistory(uint256 _root) internal {

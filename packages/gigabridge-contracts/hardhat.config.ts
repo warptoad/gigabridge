@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
       "poseidon2-evm/src/bn254/yul/Poseidon2Yul.sol",
       // these are `public` libraries, so they get deployed separately and linked into GigaBridge
       "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2WriteStorage.sol",
-      "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2WriteStorage.sol",
+      "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2WriteEvent.sol",
       "@warptoad/fat-imt.sol/poseidon2/FatIMTPoseidon2Read.sol",
       "@warptoad/skinny-imt.sol/poseidon2/SkinnyIMTPoseidon2Read.sol"
     ],

@@ -15,12 +15,12 @@ import { getContract, getContractAddress, GetContractReturnType, Hash, Hex, pars
 //import { create2Proxy } from "../../gigabridge-js/src/poseidon2/create2Proxy.js";
 //import { poseidon2Hash } from "@zkpassport/poseidon2"
 //import { compileHuff } from "../scripts/compile/compileHuff.js";
-import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseidon2/deployPoseidon2.js";
+// import { deployPoseidon2HuffWithInterface } from "../../gigabridge-js/src/poseidon2/deployPoseidon2.js";
 //import { GigaBridge$Type } from "../artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js";
 //import LazyImtPoseidon2Artifact from "../artifacts/contracts/imt-poseidon2/LazyImtPoseidon2.sol/LazyImtPoseidon2.json" with {type: "json"}
 import GigaBridgeArtifact from "../artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"}
 //TODO import this from index
-import { registerNewLeaf, updateLeaf } from "../../gigabridge-js/src/gigaBridge.js"
+import { registerNewLeaf, updateLeaf } from "../../gigabridge-js/src/GigaBridge.js"
 import { FatImtContractName, FatImtReadContractName, GigaBridgeContractName, GigaBridgeContractTestType, SkinnyImtContractName, SkinnyImtReadContractName } from "../src/index.js";
 
 /** IGigaBridge.RootType. `rootHistory` is a mapping, so a root that was never seen reads as NOT_A_ROOT. */
@@ -99,7 +99,7 @@ describe("gigaBridge", async function () {
 
             const jsTrees = new Trees(gigaBridge.address, publicClient)
             // TODO be nice to have a sync a single treeId and get one object. then a sync multiple or all for multiple
-            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot }))[toHex(syncTreeId)]
+            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot, fullNodeMode:false }))[toHex(syncTreeId)]
 
             // the gaps between the leaf indexes are filled with zeros onchain, so js has to see them too
             assert.deepEqual(syncTreeJs.tree.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
@@ -140,7 +140,7 @@ describe("gigaBridge", async function () {
             const jsTrees = new Trees(gigaBridge.address, publicClient)
             // the syncTree is reset at the end of every createNewSyncTree, so storage only ever holds an
             // empty tree: syncToRoot is what makes the lib walk the events back to the tree of this tx
-            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot }))[toHex(syncTreeId)]
+            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot, fullNodeMode:false }))[toHex(syncTreeId)]
 
             assert.deepEqual(syncTreeJs.tree.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
             assert.equal(syncTreeJs.tree.root, syncRoot, "reconstructed sync tree root doesn't match the one emitted onchain")
@@ -178,7 +178,7 @@ describe("gigaBridge", async function () {
             const syncRoot = syncRootOf(createSyncTreeTxReceipt, syncTreeId)
 
             const jsTrees = new Trees(gigaBridge.address, publicClient)
-            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot }))[toHex(syncTreeId)]
+            const syncTreeJs = (await jsTrees.sync([syncTreeId], { syncToRoot: syncRoot, fullNodeMode:false }))[toHex(syncTreeId)]
 
             // every index is taken here, so there is nothing to zero fill and the sync tree is the giga tree
             assert.deepEqual(syncTreeJs.tree.leaves, values, "sync tree doesn't hold the leafs it was built with")

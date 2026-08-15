@@ -3,7 +3,7 @@
 import { ContractReturnType } from "@nomicfoundation/hardhat-viem/types";
 export const GigaBridgeContractName = "GigaBridge"
 export const FatImtContractName = "FatIMTPoseidon2WriteStorage"
-export const SkinnyImtContractName = "SkinnyIMTPoseidon2WriteStorage"
+export const SkinnyImtContractName = "SkinnyIMTPoseidon2WriteEvent"
 export const FatImtReadContractName = "FatIMTPoseidon2Read"
 export const SkinnyImtReadContractName = "SkinnyIMTPoseidon2Read"
 export type GigaBridgeContractTestType = ContractReturnType<typeof GigaBridgeContractName>

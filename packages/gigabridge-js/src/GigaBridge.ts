@@ -9,8 +9,32 @@ import { Address, Client, getContract, PublicClient, WalletClient, GetContractRe
 import { type GigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 import { GigaBridgeArtifact, GigaBridgeContractTestType } from "../../gigabridge-contracts/src/index.js";
 import { GigaBridgeContractWithWalletClient, GigaBridgeContract, atLeastOneCLient } from "./types.js";
-import { AnyContract, CachedTree, Trees } from "@warptoad/skinny-fat-imt-js";
+import { AnyContract, CachedTree, copyTree, TREE_TYPE, Trees } from "@warptoad/skinny-fat-imt-js";
+import type { ReadonlyLeanIMT } from "@warptoad/skinny-fat-imt-js";
 //import { queryEventInChunks } from "./viem-utils.js";
+
+export async function registerNewLeaf(
+    { args, gigaBridge, client: { publicClient, wallet } }
+        : {
+            args: [owner: Address, updater: Address, value: bigint],
+            gigaBridge: GigaBridgeContractWithWalletClient | GigaBridgeContractTestType,
+            client: { publicClient: PublicClient, wallet: WalletClient }
+        }
+) {//:Promise<{index:bigint, txHash:Hash, txReceipt:TransactionReceipt}> {
+    const txHash = await (gigaBridge as GigaBridgeContractWithWalletClient).write.registerNewLeaf(args, { account: wallet.account ?? null, chain: wallet.chain })
+    const txReceipt = await publicClient.getTransactionReceipt({ hash: txHash });
+    const registerEvent = parseEventLogs({
+        abi: gigaBridge.abi,
+        eventName: 'LeafRegistered',
+        logs: txReceipt.logs,
+    })[0]
+    return { index: registerEvent.args.index, txHash, txReceipt }
+}
+
+export async function updateLeaf({ args, gigaBridge, client: { publicClient, wallet } }: { args: [value: bigint, index: bigint], gigaBridge: GigaBridgeContractWithWalletClient | GigaBridgeContractTestType, client: { publicClient: PublicClient, wallet: WalletClient } }): Promise<Hash> {
+    const txHash = await (gigaBridge as GigaBridgeContractWithWalletClient).write.updateLeaf(args, { account: wallet.account ?? null, chain: wallet.chain })
+    return txHash
+}
 
 const GIGA_BRIDGE_DEPLOYMENT_BLOCKS: { [chainId: number]: bigint; } = {
 
@@ -26,20 +50,35 @@ type GigaBridgeReadContract = GetContractReturnType<GigaBridge$Type["abi"], Publ
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
 export const poseidon2IMTHashFunc: LeanIMTHashFunction = (a: bigint, b: bigint) => poseidon2Hash([a, b])
 
-
 export class GigaBridge {
-    publicClient: PublicClient
-    address: Address;
-    contract?: GigaBridgeReadContract;
-    trees?: Trees;
-    id?: { gigaTree: Hex, syncTree: Hex };
+    private publicClient: PublicClient
+    readonly address: Address;
+    private contract?: GigaBridgeReadContract;
+    private trees?: Trees;
+    readonly hashFunction = poseidon2IMTHashFunc;
+    private pinnedTrees = {
+        gigaTree: {
+            tree: new LeanIMT(this.hashFunction, []),
+            type: TREE_TYPE.FAT_STORAGE,
+            lastSynced: 0n,
+            insertOnlyTree: false
+        } as CachedTree,
+        syncTree: {
+            tree: new LeanIMT(this.hashFunction, []),
+            type: TREE_TYPE.SKINNY_EVENT,
+            lastSynced: 0n,
+            insertOnlyTree: true,
+
+        } as CachedTree
+    };
+    private id?: { gigaTree: Hex, syncTree: Hex };
+
     constructor(publicClient: PublicClient, address = GIGA_BRIDGE_ADDRESS) {
         this.publicClient = publicClient;
         this.address = address;
     }
 
-    // {fullNodeMode, blockNumber, attemptFastSizeMatch, syncToRoot, eventChunkSize, storageChunkSize, hasRepeatedLeafs, insertOnlyTree, autoDiscovery}:{ fullNodeMode?: boolean, blockNumber?: bigint, attemptFastSizeMatch?: boolean, syncToRoot?: bigint, eventChunkSize?: bigint, storageChunkSize?: bigint, hasRepeatedLeafs?: boolean, insertOnlyTree?: boolean, autoDiscovery?: boolean | undefined } = {}
-    async init({fullNodeMode, eventChunkSize, storageChunkSize}:{ fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    async init() {
         if (this.contract === undefined) {
             this.contract = getContract({ abi: gigaBridgeAbi, address: this.address, client: this.publicClient })
         }
@@ -50,26 +89,161 @@ export class GigaBridge {
                 syncTree: toHex(syncId)
             }
         }
+    }
+
+    async getGigaTreeId(): Promise<Hex> {
+        await this.init()
+        return this.id!.gigaTree
+    }
+
+    async getSyncTreeId(): Promise<Hex> {
+        await this.init()
+        return this.id!.syncTree
+    }
+
+    // {fullNodeMode, blockNumber, attemptFastSizeMatch, syncToRoot, eventChunkSize, storageChunkSize, hasRepeatedLeafs, insertOnlyTree, autoDiscovery}:{ fullNodeMode?: boolean, blockNumber?: bigint, attemptFastSizeMatch?: boolean, syncToRoot?: bigint, eventChunkSize?: bigint, storageChunkSize?: bigint, hasRepeatedLeafs?: boolean, insertOnlyTree?: boolean, autoDiscovery?: boolean | undefined } = {}
+    async sync({ fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        await this.init()
         if (this.trees === undefined) {
             this.trees = new Trees(this.address, this.publicClient, poseidon2IMTHashFunc)
-            // initial sync
-            await this.trees.sync([BigInt(this.id.gigaTree), BigInt(this.id.syncTree)], {
+            const syncTree = await this.trees.initTree(await this.getSyncTreeId(), await this.publicClient.getChainId())
+            // initial sync (not sync tree, it resets every tx so not use full to sync like this)
+            const gigaTree = (await this.trees.sync([BigInt(await this.getGigaTreeId())], {
                 // settings
                 fullNodeMode, eventChunkSize, storageChunkSize,
                 // default
-                attemptFastSizeMatch: true,
+                attemptFastSizeMatch: false, // rarely works since leafs update so often 
                 syncToRoot: undefined,
-                hasRepeatedLeafs: true, 
+                hasRepeatedLeafs: false,    // gigaTree does not have that, this saves a bit on event scan
                 insertOnlyTree: false,
                 autoDiscovery: false
-            })
+            }))[await this.getGigaTreeId()]
+
+            if (this.pinnedTrees?.gigaTree.lastSynced === 0n) {
+                this.pinnedTrees.gigaTree = gigaTree
+            }
+            if (this.pinnedTrees?.syncTree.lastSynced === 0n) {
+                this.pinnedTrees.syncTree = syncTree
+            }
         }
     }
 
+    // would pinning to block number ever need to exist?
+    async pinGigaRoot(gigaRoot: bigint, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        await this.init()
+        const pin = (await this.trees!.sync([BigInt(await this.getGigaTreeId())], {
+            // inputs
+            syncToRoot: gigaRoot,
+            // settings
+            fullNodeMode, eventChunkSize, storageChunkSize,
+            // default
+            attemptFastSizeMatch: false, // rarely works since leafs update so often 
+            hasRepeatedLeafs: false,    // gigaTree does not have that, this saves a bit on event scan
+            insertOnlyTree: false,
+            autoDiscovery: false
+        }))[await this.getGigaTreeId()]
+        this.pinnedTrees!.gigaTree = pin
+        return pin
+    }
 
-    // get gigaTree() {
-    //     return {
-    //         this.tr
-    //     }
-    // }
+    async pinSyncRoot(syncRoot: bigint, { eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        await this.init()
+        const pin = (await this.trees!.sync([BigInt(await this.getSyncTreeId())], {
+            // inputs
+            syncToRoot: syncRoot,
+            // settings
+            eventChunkSize, storageChunkSize,
+            // default
+            fullNodeMode: false,
+            attemptFastSizeMatch: false, // rarely works since leafs update so often 
+            hasRepeatedLeafs: false,    // gigaTree does not have that, this saves a bit on event scan
+            insertOnlyTree: false,
+            autoDiscovery: false
+        }))[await this.getGigaTreeId()]
+        this.pinnedTrees!.syncTree = pin
+        return pin
+    }
+
+    async pinGigaRootTx(txHash: Hex, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        const [gigaTreeId, receipt] = await Promise.all([
+            this.getGigaTreeId(),
+            this.publicClient.getTransactionReceipt({ hash: txHash })
+        ])
+        const newRootEvents = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewRoot',
+            logs: receipt.logs,
+        }).filter((event) => event.args.treeId === BigInt(gigaTreeId) && event.args.size > 0n)
+        if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a GigaRoot in tx: ${txHash}.`)
+        if (newRootEvents.length > 1) throw new Error(`More then 1 NewRoot events found that contain a GigaRoot in tx: ${txHash}, found ${newRootEvents.length} events.`)
+        const syncRoot = newRootEvents[0].args.root
+        return await this.pinGigaRoot(syncRoot, { fullNodeMode, eventChunkSize, storageChunkSize })
+    }
+
+    async pinSyncRootTx(txHash: Hex, { eventChunkSize, storageChunkSize }: { eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        const [syncTreeId, receipt] = await Promise.all([
+            this.getSyncTreeId(),
+            this.publicClient.getTransactionReceipt({ hash: txHash })
+        ])
+        const newRootEvents = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewRoot',
+            logs: receipt.logs,
+        }).filter((event) => event.args.treeId === BigInt(syncTreeId) && event.args.size > 0n)
+        if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a SyncRoot in tx: ${txHash}.`)
+        if (newRootEvents.length > 1) throw new Error(`More then 1 NewRoot events found that contain a SyncRoot in tx: ${txHash}, found ${newRootEvents.length} events.`)
+        const syncRoot = newRootEvents[0].args.root
+        return await this.pinSyncRoot(syncRoot, { eventChunkSize, storageChunkSize })
+    }
+
+    get gigaTree() {
+        const notInitialized = this.id === undefined
+        const neverSynced = this.trees === undefined
+        if (notInitialized || neverSynced) {
+            if (notInitialized) console.warn('GigaTree is never synced. returning empty gigaTree')
+            if (neverSynced) console.warn('GigaTree is never synced. returning empty gigaTree')
+            return {
+                cache: new LeanIMT(this.hashFunction, []) as ReadonlyLeanIMT,
+                ...new LeanIMT(this.hashFunction, []) as ReadonlyLeanIMT,
+                lastSync: 0n,
+                pinRoot: this.pinGigaRoot,
+                pinTx: this.pinGigaRootTx
+            }
+        } else {
+            return {
+                cache: copyTree(this.trees!.cache[this.id!.gigaTree].tree as LeanIMT<bigint>, this.hashFunction) as ReadonlyLeanIMT,
+                ...copyTree(this.pinnedTrees!.gigaTree.tree, this.hashFunction) as ReadonlyLeanIMT,
+                lastSync: this.trees!.cache[this.id!.gigaTree].lastSynced,
+                pinRoot: this.pinGigaRoot,
+                pinTx: this.pinGigaRootTx
+            }
+        }
+    }
+
+    get syncTree() {
+        const notInitialized = this.id === undefined
+        const neverSynced = this.trees === undefined
+        if (notInitialized || neverSynced) {
+            if (notInitialized) console.warn('GigaTree is never synced. returning empty syncTree')
+            if (neverSynced) console.warn('GigaTree is never synced. returning empty syncTree')
+            return {
+                cache: new LeanIMT(this.hashFunction, []),
+                ...new LeanIMT(this.hashFunction, []),
+                lastSync: 0n,
+                pinRoot: this.pinSyncRoot,
+                pinTx: this.pinSyncRootTx
+            }
+        } else {
+            return {
+                // it's already readonly so why copy?
+                cache: copyTree(this.trees!.cache[this.id!.syncTree].tree as LeanIMT<bigint>, this.hashFunction) as ReadonlyLeanIMT,
+                // would deconstructing break ReadonlyLeanIMT?
+                ...copyTree(this.pinnedTrees!.syncTree.tree, this.hashFunction) as ReadonlyLeanIMT,
+                lastSync: this.trees!.cache[this.id!.syncTree].lastSynced,
+                pinRoot: this.pinSyncRoot,
+                pinTx: this.pinSyncRootTx
+            }
+        }
+    }
+
 }
