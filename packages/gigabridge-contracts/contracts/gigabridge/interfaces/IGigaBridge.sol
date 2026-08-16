@@ -31,7 +31,7 @@ interface IGigaBridge {
     }
 
     // functions
-    function registerNewLeaf(address _owner, address _updater, uint256 _value) external returns (uint256 _root, uint256 _index);
+    function registerNewLeaf(uint256 _value, address _owner, address _updater) external returns (uint256 _root, uint256 _index);
     function updateLeaf(uint256 _value, uint256 _index) external returns (uint256 _root);
     function transferOwnerOfLeafIndex(uint256 _index, address _newOwner) external;
     function setUpdaterOfLeafIndex(uint256 _index, address _newUpdater) external;

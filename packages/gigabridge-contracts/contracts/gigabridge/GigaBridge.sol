@@ -51,12 +51,16 @@ contract GigaBridge is
         return super.supportsInterface(interfaceId);
     }
 
-    function _getFatStorageTree(uint256 _treeId) internal view override returns (FatIMTDataStorage storage) {
+    function _getFatStorageTree(
+        uint256 _treeId
+    ) internal view override returns (FatIMTDataStorage storage) {
         if (_treeId != gigaTreeId) revert UnknownTreeId(_treeId);
         return gigaTree;
     }
 
-    function _getSkinnyEventTree(uint256 _treeId) internal view override returns (SkinnyIMTDataEvent storage) {
+    function _getSkinnyEventTree(
+        uint256 _treeId
+    ) internal view override returns (SkinnyIMTDataEvent storage) {
         if (_treeId != syncTreeId) revert UnknownTreeId(_treeId);
         return syncTree;
     }
@@ -82,9 +86,9 @@ contract GigaBridge is
     }
 
     function registerNewLeaf(
+        uint256 _value,
         address _owner,
-        address _updater,
-        uint256 _value
+        address _updater
     ) public override returns (uint256, uint256) {
         // insert leaf
         (uint256 _root, uint256 _index) = FatIMTPoseidon2WriteStorage.insert(

@@ -72,7 +72,7 @@ describe("gigaBridge", async function () {
         const values: bigint[] = []
         let txHash: Hash = "0x00"
         for (let value = 0n; value < amount; value++) {
-            const registered = await registerNewLeaf({ args: [owner, updater, value], gigaBridge, client: { publicClient, wallet } })
+            const registered = await registerNewLeaf({ args: [value, owner, updater], gigaBridge, client: { publicClient, wallet } })
             txHash = registered.txHash
             indexes.push(registered.index)
             values.push(value)

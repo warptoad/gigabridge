@@ -4,7 +4,7 @@ import { LeanIMT, LeanIMTHashFunction } from "@zk-kit/lean-imt"
 import { poseidon2Hash } from "@zkpassport/poseidon2"
 //import GigaBridgeArtifact from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/GigaBridge.json" with {type: "json"} 
 import { IGigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/interfaces/IGigaBridge.sol/artifacts.js"
-import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem, Abi, parseAbi, parseAbiItem, TransactionReceipt, Hex, Chain, toHex } from "viem";
+import { Address, Client, getContract, PublicClient, WalletClient, GetContractReturnType, Transaction, Hash, parseEventLogs, ParseEventLogsReturnType, ParseEventLogsParameters, ExtractAbiItem, Abi, parseAbi, parseAbiItem, TransactionReceipt, Hex, Chain, toHex, Account } from "viem";
 //import {GigaBridgeContractWritableType } from "./types.js";
 import { type GigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 import { GigaBridgeArtifact, GigaBridgeContractTestType } from "../../gigabridge-contracts/src/index.js";
@@ -13,10 +13,19 @@ import { AnyContract, CachedTree, copyTree, TREE_TYPE, Trees } from "@warptoad/s
 import type { ReadonlyLeanIMT } from "@warptoad/skinny-fat-imt-js";
 //import { queryEventInChunks } from "./viem-utils.js";
 
+
+import { UnionOmit, WriteContractParameters } from "viem"
+
+type TxOpts = UnionOmit<
+    WriteContractParameters<GigaBridge$Type["abi"], "updateLeaf">,
+    "abi" | "address" | "functionName" | "args" | "account" | "chain"
+>
+export type ConnectedWalletClient = WalletClient & { account: Account }
+
 export async function registerNewLeaf(
     { args, gigaBridge, client: { publicClient, wallet } }
         : {
-            args: [owner: Address, updater: Address, value: bigint],
+            args: [value: bigint, owner: Address, updater: Address],
             gigaBridge: GigaBridgeContractWithWalletClient | GigaBridgeContractTestType,
             client: { publicClient: PublicClient, wallet: WalletClient }
         }
@@ -45,6 +54,7 @@ const GIGA_BRIDGE_DEPLOYMENT_BLOCKS: { [chainId: number]: bigint; } = {
 const gigaBridgeAbi = GigaBridgeArtifact.abi as unknown as GigaBridge$Type["abi"];
 
 type GigaBridgeReadContract = GetContractReturnType<GigaBridge$Type["abi"], PublicClient, Address>;
+type GigaBridgeWriteContract = GetContractReturnType<GigaBridge$Type["abi"], { public: PublicClient, wallet: WalletClient }, Address>;
 
 // TODO default address
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
@@ -52,8 +62,9 @@ export const poseidon2IMTHashFunc: LeanIMTHashFunction = (a: bigint, b: bigint) 
 
 export class GigaBridge {
     private publicClient: PublicClient
+    private walletClient?: ConnectedWalletClient;
     readonly address: Address;
-    private contract?: GigaBridgeReadContract;
+    private contract?: GigaBridgeReadContract | GigaBridgeWriteContract;
     private trees?: Trees;
     readonly hashFunction = poseidon2IMTHashFunc;
     private pinnedTrees = {
@@ -73,14 +84,19 @@ export class GigaBridge {
     };
     private id?: { gigaTree: Hex, syncTree: Hex };
 
-    constructor(publicClient: PublicClient, address = GIGA_BRIDGE_ADDRESS) {
+    constructor(publicClient: PublicClient, address = GIGA_BRIDGE_ADDRESS, walletClient: ConnectedWalletClient) {
         this.publicClient = publicClient;
+        this.walletClient = walletClient
         this.address = address;
     }
 
     async init() {
-        if (this.contract === undefined) {
-            this.contract = getContract({ abi: gigaBridgeAbi, address: this.address, client: this.publicClient })
+        // right side of `or` is "if wallet got connected after class got constructed"
+        if (this.contract === undefined || (this.contract.write === undefined && this.walletClient !== undefined)) {
+            this.contract = getContract({
+                abi: gigaBridgeAbi, address: this.address,
+                client: { public: this.publicClient, wallet: this.walletClient as WalletClient }
+            })
         }
         if (this.id === undefined) {
             const [gigaId, syncId] = await Promise.all([await this.contract.read.gigaTreeId(), await this.contract.read.syncTreeId()])
@@ -100,6 +116,61 @@ export class GigaBridge {
         await this.init()
         return this.id!.syncTree
     }
+
+    connectWallet(wallet: ConnectedWalletClient) {
+        this.walletClient = wallet
+    }
+
+    /**
+     * Overwrites the gigaTree leaf at `index`. The connected wallet must be its registered updater.
+     * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
+     * @returns {txHash, txReceipt, root, treeSize}
+     */
+    async updateLeaf(value: bigint, index: bigint, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
+        await this.init()
+        if (this.walletClient === undefined) throw new Error('No wallet connected')
+        const txHash = await this.contract!.write.updateLeaf([value, index], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
+        const txReceipt = await this.publicClient.getTransactionReceipt({ hash: txHash })
+        const newRootEvent = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewRoot',
+            logs: txReceipt.logs,
+        })[0]
+        return {
+            txHash, txReceipt,
+            root: newRootEvent.args.root,
+            treeSize: newRootEvent.args.size,
+        }
+    }
+
+    /**
+     * Inserts new leaf into the GigaTree and registers it's index to be owned by the owner and allows updater to update the leaf. 
+     * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
+     * @returns {txHash, txReceipt, index, root, treeSize}
+     */
+    async registerNewLeaf(value: bigint, owner: Address, updater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, index: bigint, root: bigint, treeSize: bigint }> {
+        await this.init()
+        if (this.walletClient === undefined) throw new Error('No wallet connected')
+        const txHash = await this.contract!.write.registerNewLeaf([value, owner, updater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
+        const txReceipt = await this.publicClient.getTransactionReceipt({ hash: txHash })
+        const newRootEvent = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewRoot',
+            logs: txReceipt.logs,
+        })[0]
+        const newLeafEvent = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewLeaf',
+            logs: txReceipt.logs,
+        })[0]
+        return {
+            txHash, txReceipt,
+            root: newRootEvent.args.root,
+            treeSize: newRootEvent.args.size,
+            index: newLeafEvent.args.index
+        }
+    }
+
 
     // {fullNodeMode, blockNumber, attemptFastSizeMatch, syncToRoot, eventChunkSize, storageChunkSize, hasRepeatedLeafs, insertOnlyTree, autoDiscovery}:{ fullNodeMode?: boolean, blockNumber?: bigint, attemptFastSizeMatch?: boolean, syncToRoot?: bigint, eventChunkSize?: bigint, storageChunkSize?: bigint, hasRepeatedLeafs?: boolean, insertOnlyTree?: boolean, autoDiscovery?: boolean | undefined } = {}
     async sync({ fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
