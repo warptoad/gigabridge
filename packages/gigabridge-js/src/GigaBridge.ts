@@ -37,13 +37,24 @@ type GigaBridgeWriteContract = GetContractReturnType<GigaBridge$Type["abi"], { p
 const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
 export const poseidon2IMTHashFunc: LeanIMTHashFunction = (a: bigint, b: bigint) => poseidon2Hash([a, b])
 
+/**
+ * `tree`, with `extra` hung off it. Object.create, *not* `{...tree}`: leaves/root/size/depth are getters
+ * on LeanIMT.prototype and a spread only copies own properties (`_nodes`, `_hash`), so every one of them
+ * comes back undefined. Going through the prototype keeps them working, and it hands out no copy: reads
+ * land on `tree` itself. The return type is inferred rather than asserted, so a key you forgot to pass is
+ * a type error instead of an undefined at runtime.
+ */
+function treeWith<E extends object>(tree: LeanIMT<bigint>, extra: E): ReadonlyLeanIMT & E {
+    return Object.assign(Object.create(tree) as LeanIMT<bigint>, extra)
+}
+
 export class GigaBridge {
     private publicClient: PublicClient
     private walletClient?: ConnectedWalletClient;
     readonly address: Address;
     private contract?: GigaBridgeReadContract | GigaBridgeWriteContract;
     private trees: Trees;
-    readonly hashFunction = poseidon2IMTHashFunc;
+    private hashFunction = poseidon2IMTHashFunc;
     private pinnedTrees = {
         gigaTree: {
             tree: new LeanIMT(this.hashFunction, []),
@@ -99,12 +110,12 @@ export class GigaBridge {
         }
     }
 
-    async getGigaTreeId(): Promise<Hex> {
+    private async _getGigaTreeId(): Promise<Hex> {
         await this.init()
         return this.id!.gigaTree
     }
 
-    async getSyncTreeId(): Promise<Hex> {
+    private async _getSyncTreeId(): Promise<Hex> {
         await this.init()
         return this.id!.syncTree
     }
@@ -118,11 +129,11 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, root, treeSize}
      */
-    async updateLeaf(value: bigint, index: bigint, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
+    private async _updateLeaf(value: bigint, index: bigint, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.updateLeaf([value, index], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
-        const txReceipt = await this.publicClient.waitForTransactionReceipt({hash:txHash})
+        const txReceipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash })
         const newRootEvent = parseEventLogs({
             abi: gigaBridgeAbi,
             eventName: 'NewRoot',
@@ -140,7 +151,7 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, index, root, treeSize}
      */
-    async registerNewLeaf(value: bigint, owner: Address, updater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, index: bigint, root: bigint, treeSize: bigint }> {
+    private async _registerNewLeaf(value: bigint, owner: Address, updater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, index: bigint, root: bigint, treeSize: bigint }> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.registerNewLeaf([value, owner, updater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -168,7 +179,7 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, root, treeSize}
      */
-    async createNewSyncTree(values: bigint[], indexes: bigint[], txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
+    private async _createNewSyncTree(values: bigint[], indexes: bigint[], txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
 
@@ -199,7 +210,7 @@ export class GigaBridge {
         }
     }
 
-    async transferOwnerOfLeafIndex(index: bigint, newOwner: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
+    private async _transferOwnerOfLeafIndex(index: bigint, newOwner: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.transferOwnerOfLeafIndex([index, newOwner], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -209,7 +220,7 @@ export class GigaBridge {
         }
     }
 
-    async setUpdaterOfLeafIndex(index: bigint, newUpdater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
+    private async _setUpdaterOfLeafIndex(index: bigint, newUpdater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.setUpdaterOfLeafIndex([index, newUpdater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -220,11 +231,11 @@ export class GigaBridge {
     }
 
     // {fullNodeMode, blockNumber, attemptFastSizeMatch, syncToRoot, eventChunkSize, storageChunkSize, hasRepeatedLeafs, insertOnlyTree, autoDiscovery}:{ fullNodeMode?: boolean, blockNumber?: bigint, attemptFastSizeMatch?: boolean, syncToRoot?: bigint, eventChunkSize?: bigint, storageChunkSize?: bigint, hasRepeatedLeafs?: boolean, insertOnlyTree?: boolean, autoDiscovery?: boolean | undefined } = {}
-    async sync({ fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _syncGigaTree({ updatePin = false, fullNodeMode, eventChunkSize, storageChunkSize }: { updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         await this.init()
 
         // initial sync (not sync tree, it resets every tx so not use full to sync like this)
-        const gigaTree = (await this.trees.sync([BigInt(await this.getGigaTreeId())], {
+        const gigaTree = (await this.trees.sync([BigInt(await this._getGigaTreeId())], {
             // settings
             fullNodeMode, eventChunkSize, storageChunkSize,
             // default
@@ -233,17 +244,22 @@ export class GigaBridge {
             hasRepeatedLeafs: false,    // gigaTree does not have that, this saves a bit on event scan
             insertOnlyTree: false,
             autoDiscovery: false
-        }))[await this.getGigaTreeId()]
+        }))[await this._getGigaTreeId()]
 
-        if (this.pinnedTrees?.gigaTree.lastSynced === 0n) {
+        if (updatePin || this.pinnedTrees?.gigaTree.lastSynced === 0n) {
             this.pinnedTrees.gigaTree = gigaTree
         }
+        return copyTree(gigaTree.tree, this.hashFunction)
+    }
+
+    private async _syncGigaTreePinned({ fullNodeMode, eventChunkSize, storageChunkSize }: { updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+        return await this._syncGigaTree({ updatePin: true, fullNodeMode, eventChunkSize, storageChunkSize })
     }
 
     // would pinning to block number ever need to exist?
-    async pinGigaRoot(gigaRoot: bigint, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _pinGigaRoot(gigaRoot: bigint, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         await this.init()
-        const pin = (await this.trees!.sync([BigInt(await this.getGigaTreeId())], {
+        const pin = (await this.trees!.sync([BigInt(await this._getGigaTreeId())], {
             // inputs
             syncToRoot: gigaRoot,
             // settings
@@ -253,14 +269,14 @@ export class GigaBridge {
             hasRepeatedLeafs: false,    // gigaTree does not have that, this saves a bit on event scan
             insertOnlyTree: false,
             autoDiscovery: false
-        }))[await this.getGigaTreeId()]
+        }))[await this._getGigaTreeId()]
         this.pinnedTrees!.gigaTree = pin
         return pin
     }
 
-    async pinSyncRoot(syncRoot: bigint, { eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _pinSyncRoot(syncRoot: bigint, { eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         await this.init()
-        const pin = (await this.trees!.sync([BigInt(await this.getSyncTreeId())], {
+        const pin = (await this.trees!.sync([BigInt(await this._getSyncTreeId())], {
             // inputs
             syncToRoot: syncRoot,
             // settings
@@ -271,14 +287,14 @@ export class GigaBridge {
             hasRepeatedLeafs: true,    // syncTree does have that
             insertOnlyTree: false,
             autoDiscovery: false
-        }))[await this.getSyncTreeId()]
+        }))[await this._getSyncTreeId()]
         this.pinnedTrees!.syncTree = pin
         return pin
     }
 
-    async pinGigaRootTx(txHash: Hex, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _pinGigaRootTx(txHash: Hex, { fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         const [gigaTreeId, receipt] = await Promise.all([
-            this.getGigaTreeId(),
+            this._getGigaTreeId(),
             this.publicClient.waitForTransactionReceipt({ hash: txHash })
         ])
         const newRootEvents = parseEventLogs({
@@ -288,12 +304,12 @@ export class GigaBridge {
         }).filter((event) => event.args.treeId === BigInt(gigaTreeId) && event.args.size > 0n)
         if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a GigaRoot in tx: ${txHash}.`)
         const syncRoot = newRootEvents[newRootEvents.length - 1].args.root
-        return await this.pinGigaRoot(syncRoot, { fullNodeMode, eventChunkSize, storageChunkSize })
+        return await this._pinGigaRoot(syncRoot, { fullNodeMode, eventChunkSize, storageChunkSize })
     }
 
-    async pinSyncRootTx(txHash: Hex, { eventChunkSize, storageChunkSize }: { eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _pinSyncRootTx(txHash: Hex, { eventChunkSize, storageChunkSize }: { eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         const [syncTreeId, receipt] = await Promise.all([
-            this.getSyncTreeId(),
+            this._getSyncTreeId(),
             this.publicClient.waitForTransactionReceipt({ hash: txHash })
         ])
         const newRootEvents = parseEventLogs({
@@ -303,7 +319,7 @@ export class GigaBridge {
         }).filter((event) => event.args.treeId === BigInt(syncTreeId) && event.args.size > 0n)
         if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a SyncRoot in tx: ${txHash}.`)
         const syncRoot = newRootEvents[newRootEvents.length - 1].args.root
-        return await this.pinSyncRoot(syncRoot, { eventChunkSize, storageChunkSize })
+        return await this._pinSyncRoot(syncRoot, { eventChunkSize, storageChunkSize })
     }
 
     get gigaTree() {
@@ -312,28 +328,53 @@ export class GigaBridge {
         if (notInitialized) console.warn('gigaTree is not initialized yet, returning an empty gigaTree. init(), sync() or any write does it')
         // bound, otherwise `const {pinRoot} = gigaBridge.gigaTree` (or just calling it off the returned
         // object) loses `this` and every `this.init()` inside them throws
-        const functions = {
-            pinRoot: this.pinGigaRoot.bind(this),
-            pinTx: this.pinGigaRootTx.bind(this),
-            insertLeaf: this.registerNewLeaf.bind(this),
-            updateLeaf: this.updateLeaf.bind(this)
-
+        const transact = {
+            insertLeaf: this._registerNewLeaf.bind(this),
+            updateLeaf: this._updateLeaf.bind(this),
+            changeLeafUpdater: this._setUpdaterOfLeafIndex.bind(this),
+            transferLeafOwner: this._transferOwnerOfLeafIndex.bind(this)
         }
-        // getters, not values: reading one tree shouldn't pay for copying the other, and reaching a
-        // function off here shouldn't copy anything at all
+        // getters, not values: reading one tree shouldn't build the other, and reaching a function off
+        // here shouldn't touch a tree at all
         return {
-            get cache(): ReadonlyLeanIMT {
-                if (notInitialized) return new LeanIMT(self.hashFunction, [])
-                return self.trees.cache[self.id!.gigaTree].tree as LeanIMT<bigint>
+            /**
+             * The head this instance last synced to, live: it is the lib's own cached tree, and the event
+             * sync merges new leaves into it in place, so it can move under you between two reads. Meant
+             * for inspecting how far the sync got. For a tree that stays put, use {@link pinned}, and to
+             * modify one, `copyTree` it first, the type here allows no writes.
+             */
+            get cache() {
+                const tree = notInitialized
+                    ? new LeanIMT(self.hashFunction, [])
+                    : self.trees.cache[self.id!.gigaTree].tree as LeanIMT<bigint>
+                return treeWith(tree, { sync: self._syncGigaTree.bind(self) })
             },
-            get pinned(): ReadonlyLeanIMT {
-                if (notInitialized) return new LeanIMT(self.hashFunction, [])
-                return self.pinnedTrees.gigaTree.tree
+
+            /**
+             * The tree as of the pinned root. Nothing else holds this one and pinning replaces it rather
+             * than growing it, so what you get here keeps its root even after the pin moves on.
+             */
+            get pinned() {
+                const tree = notInitialized ? new LeanIMT(self.hashFunction, []) : self.pinnedTrees.gigaTree.tree
+                return treeWith(tree, {
+                    sync: self._syncGigaTreePinned.bind(self),
+                    pinRoot: self._pinGigaRoot.bind(self),
+                    pinTx: self._pinGigaRootTx.bind(self),
+                })
             },
             get lastSync(): bigint {
                 return notInitialized ? 0n : self.trees.cache[self.id!.gigaTree].lastSynced
             },
-            ...functions
+            get write() {
+                return transact
+            },
+            get id(): Hex {
+                if (notInitialized) {
+                    throw new Error('GigaBridge object is not initialized, please do `await gigaBridge.init*()`')
+                } else {
+                    return self.id!.gigaTree
+                }
+            }
         }
     }
 
@@ -341,25 +382,37 @@ export class GigaBridge {
         const self = this
         const notInitialized = this.id === undefined
         if (notInitialized) console.warn('syncTree is not initialized yet, returning an empty syncTree. init(), sync() or any write does it')
-        const functions = {
-            pinRoot: this.pinSyncRoot.bind(this),
-            pinTx: this.pinSyncRootTx.bind(this),
-            createNew: this.createNewSyncTree.bind(this),
+        const transact = {
+            createNew: this._createNewSyncTree.bind(this),
         }
-        // see gigaTree for why cache is copied and pinned is not
+        // see gigaTree for why neither of these is a copy
         return {
+            /** live, see gigaTree.cache. The syncTree resets every tx, so onchain this is near always empty */
             get cache(): ReadonlyLeanIMT {
                 if (notInitialized) return new LeanIMT(self.hashFunction, [])
-                return self.trees.cache[self.id!.syncTree].tree as LeanIMT<bigint>
+                return self.trees.cache[self.id!.syncTree].tree as ReadonlyLeanIMT
             },
-            get pinned(): ReadonlyLeanIMT {
-                if (notInitialized) return new LeanIMT(self.hashFunction, [])
-                return self.pinnedTrees.syncTree.tree
+            /** the tree as of the pinned syncRoot, the only way to see a syncTree that isn't reset */
+            get pinned() {
+                const tree = notInitialized ? new LeanIMT(self.hashFunction, []) : self.pinnedTrees.syncTree.tree
+                return treeWith(tree, {
+                    pinRoot: self._pinSyncRoot.bind(self),
+                    pinTx: self._pinSyncRootTx.bind(self)
+                })
             },
             get lastSync(): bigint {
                 return notInitialized ? 0n : self.trees.cache[self.id!.syncTree].lastSynced
             },
-            ...functions
+            get write() {
+                return transact
+            },
+            get id(): Hex {
+                if (notInitialized) {
+                    throw new Error('GigaBridge object is not initialized, please do `await gigaBridge.init*()`')
+                } else {
+                    return self.id!.syncTree
+                }
+            }
         }
     }
 

@@ -53,7 +53,7 @@ describe("gigaBridge", async function () {
         let txHash: Hash = "0x00"
         gigaBridge.connectWallet(wallet)
         for (let value = 0n; value < amount; value++) {
-            const registered = await gigaBridge.registerNewLeaf(value, owner, updater)
+            const registered = await gigaBridge.gigaTree.write.insertLeaf(value, owner, updater)
             txHash = registered.txHash
             indexes.push(registered.index)
             values.push(value)
@@ -65,11 +65,11 @@ describe("gigaBridge", async function () {
         it("Should create a sync tree with a lott of zeros", async function () {
             const { txHash: registerLeafTx } = await registerLeafs(2n ** 4n, alice)
 
-            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.createNewSyncTree([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
+            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.syncTree.write.createNew([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
 
-            // the syncTree is reset at the end of every createNewSyncTree, so storage only ever holds an
+            // the syncTree is reset at the end of every tx.createNewSyncTree, so storage only ever holds an
             // empty tree: pinning to the root of this tx is what makes the class walk the events back to it
-            await gigaBridge.pinSyncRootTx(createSyncTreeTxHash)
+            await gigaBridge.syncTree.pinned.pinTx(createSyncTreeTxHash)
 
             // the gaps between the leaf indexes are filled with zeros onchain, so js has to see them too
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
@@ -90,10 +90,10 @@ describe("gigaBridge", async function () {
             const { txHash: registerLeafTx } = await registerLeafs(2n ** 4n, alice)
 
             // warm to the slots so we can test gas!
-            await gigaBridge.createNewSyncTree([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
-            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.createNewSyncTree([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
+            await gigaBridge.syncTree.write.createNew([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
+            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.syncTree.write.createNew([0n, 1n, 4n, 5n, 7n], [0n, 1n, 4n, 5n, 7n])
 
-            await gigaBridge.pinSyncRootTx(createSyncTreeTxHash)
+            await gigaBridge.syncTree.pinned.pinTx(createSyncTreeTxHash)
 
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
             assert.equal(gigaBridge.syncTree.pinned.root, syncRoot, "reconstructed sync tree root doesn't match the one emitted onchain")
@@ -113,10 +113,10 @@ describe("gigaBridge", async function () {
             const { indexes, values, txHash: registerLeafTx } = await registerLeafs(2n ** 5n, alice)
 
             // warm to the slots so we can test gas!
-            await gigaBridge.createNewSyncTree(values, indexes)
-            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.createNewSyncTree(values, indexes)
+            await gigaBridge.syncTree.write.createNew(values, indexes)
+            const { txHash: createSyncTreeTxHash, root: syncRoot } = await gigaBridge.syncTree.write.createNew(values, indexes)
 
-            await gigaBridge.pinSyncRootTx(createSyncTreeTxHash)
+            await gigaBridge.syncTree.pinned.pinTx(createSyncTreeTxHash)
 
             // every index is taken here, so there is nothing to zero fill and the sync tree is the giga tree
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, values, "sync tree doesn't hold the leafs it was built with")
@@ -139,9 +139,9 @@ describe("gigaBridge", async function () {
             // 420n was never written to index 0, so it isn't in leafHistory and the class should catch it
             // before it ever costs a tx
             await assert.rejects(
-                () => gigaBridge.createNewSyncTree([420n], [0n]),
+                () => gigaBridge.syncTree.write.createNew([420n], [0n]),
                 /never found in leaf history/,
-                "createNewSyncTree accepted a leaf that never existed onchain"
+                "tx.createNewSyncTree accepted a leaf that never existed onchain"
             )
         })
     });
@@ -151,9 +151,9 @@ describe("gigaBridge", async function () {
             const { values, txHash: registerNewLeafTx } = await registerLeafs(2n ** 4n, alice)
 
             // make sure the sync gets the correct leafs even if they update
-            let updateLeafTx = (await gigaBridge.updateLeaf(420n, 2n)).txHash
-            updateLeafTx = (await gigaBridge.updateLeaf(69n, 2n)).txHash
-            updateLeafTx = (await gigaBridge.updateLeaf(420n, 1n)).txHash
+            let updateLeafTx = (await gigaBridge.gigaTree.write.updateLeaf(420n, 2n)).txHash
+            updateLeafTx = (await gigaBridge.gigaTree.write.updateLeaf(69n, 2n)).txHash
+            updateLeafTx = (await gigaBridge.gigaTree.write.updateLeaf(420n, 1n)).txHash
             const expectedLeafs = [...values]
             expectedLeafs[2] = 69n     // last write of index 2 wins, the 420n before it is history
             expectedLeafs[1] = 420n
@@ -161,14 +161,14 @@ describe("gigaBridge", async function () {
             const onchainRoot = await gigaBridgeContract.read.gigaRoot()
 
             // the gigaTree is a fat imt, so all of its leafs are readable straight from storage
-            await gigaBridge.sync()
+            await gigaBridge.gigaTree.cache.sync()
             assert.deepEqual(gigaBridge.gigaTree.pinned.leaves, expectedLeafs, "storage synced tree doesn't hold the leafs that were registered/updated")
             assert.equal(gigaBridge.gigaTree.pinned.root, onchainRoot, "storage synced jsRoot doesn't match the onChainRoot")
 
             // and the same tree over events, with a chunk size small enough that getLogs has to walk many
             // chunks. That is the path that has to piece the updates back together in the right order
             const gigaBridgeFromEvents = new GigaBridge(publicClient, alice, gigaBridgeContract.address)
-            await gigaBridgeFromEvents.sync({ fullNodeMode: false, eventChunkSize: 2n })
+            await gigaBridgeFromEvents.gigaTree.cache.sync({ fullNodeMode: false, eventChunkSize: 2n })
             assert.deepEqual(gigaBridgeFromEvents.gigaTree.pinned.leaves, expectedLeafs, "event synced tree doesn't hold the leafs that were registered/updated")
             assert.equal(gigaBridgeFromEvents.gigaTree.pinned.root, onchainRoot, "event synced jsRoot doesn't match the onChainRoot")
 
@@ -183,18 +183,18 @@ describe("gigaBridge", async function () {
 
         it("should pin the gigaTree to an older root", async function () {
             const { values } = await registerLeafs(2n ** 3n, alice)
-            await gigaBridge.sync()
+            await gigaBridge.gigaTree.cache.sync()
 
             // the root right after the registers, before anything updates on top of it
             const rootBeforeUpdate = await gigaBridgeContract.read.gigaRoot()
-            const { txHash: updateTx, root: rootAfterUpdate } = await gigaBridge.updateLeaf(69n, 2n)
+            const { txHash: updateTx, root: rootAfterUpdate } = await gigaBridge.gigaTree.write.updateLeaf(69n, 2n)
 
-            await gigaBridge.pinGigaRoot(rootBeforeUpdate)
+            await gigaBridge.gigaTree.pinned.pinRoot(rootBeforeUpdate)
             assert.deepEqual(gigaBridge.gigaTree.pinned.leaves, values, "pinned gigaTree doesn't hold the leafs of the root it was pinned to")
             assert.equal(gigaBridge.gigaTree.pinned.root, rootBeforeUpdate, "pinned gigaTree root doesn't match the root it was pinned to")
 
             // and the same pin, but found from the tx that made the root
-            await gigaBridge.pinGigaRootTx(updateTx)
+            await gigaBridge.gigaTree.pinned.pinTx(updateTx)
             const expectedLeafs = [...values]
             expectedLeafs[2] = 69n
             assert.deepEqual(gigaBridge.gigaTree.pinned.leaves, expectedLeafs, "gigaTree pinned by tx doesn't hold the leafs of that tx")
@@ -204,49 +204,43 @@ describe("gigaBridge", async function () {
         it("should let the owner hand over ownership and the updater slot", async function () {
             const aliceAddress = alice.account.address
             const bobAddress = bob.account.address
-            const { index } = await gigaBridge.registerNewLeaf(1n, aliceAddress, aliceAddress)
+            const { index } = await gigaBridge.gigaTree.write.insertLeaf(1n, aliceAddress, aliceAddress)
 
-            await gigaBridge.setUpdaterOfLeafIndex(index, bobAddress)
+            await gigaBridge.gigaTree.write.changeLeafUpdater(index, bobAddress)
             gigaBridge.connectWallet(bob)
-            const { root } = await gigaBridge.updateLeaf(42n, index)
+            const { root } = await gigaBridge.gigaTree.write.updateLeaf(42n, index)
             assert.equal(root, await gigaBridgeContract.read.gigaRoot(), "update by the new updater didn't land onchain")
 
             gigaBridge.connectWallet(alice)
-            await gigaBridge.transferOwnerOfLeafIndex(index, bobAddress)
+            await gigaBridge.gigaTree.write.transferLeafOwner(index, bobAddress)
             assert.equal((await gigaBridgeContract.read.indexPerOwner([index])).toLowerCase(), bobAddress.toLowerCase(), "leaf index wasn't transferred to the new owner")
         })
     });
 
     describe("tree getters", async function () {
-        it("should expose functions that still work when taken off the getter", async function () {
+        it("should expose functions that still work when called off the getter", async function () {
             const aliceAddress = alice.account.address
-            // destructured, so these only work if the getter handed out bound methods
-            const { insertLeaf, updateLeaf } = gigaBridge.gigaTree
-            const { index } = await insertLeaf(0n, aliceAddress, aliceAddress)
-            const { root: rootAfterUpdate } = await updateLeaf(69n, index)
+            // `this` inside these is the object the getter returned, not the GigaBridge, so they only
+            // work if the getter handed out bound methods
+            const { index } = await gigaBridge.gigaTree.write.insertLeaf(0n, aliceAddress, aliceAddress)
+            const { root: rootAfterUpdate } = await gigaBridge.gigaTree.write.updateLeaf(69n, index)
 
-            const { pinRoot: pinGigaRoot } = gigaBridge.gigaTree
-            await pinGigaRoot(rootAfterUpdate)
+            await gigaBridge.gigaTree.pinned.pinRoot(rootAfterUpdate)
             assert.deepEqual(gigaBridge.gigaTree.pinned.leaves, [69n], "pinRoot off the gigaTree getter didn't pin the tree")
 
-            const { createNew, pinTx } = gigaBridge.syncTree
-            const { txHash } = await createNew([69n], [index])
-            await pinTx(txHash)
-            assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [69n], "createNew/pinTx off the syncTree getter didn't build the tree")
+            const { txHash } = await gigaBridge.syncTree.write.createNew([69n], [index])
+            await gigaBridge.syncTree.pinned.pinTx(txHash)
+            assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [69n], "tx.createNew/pinTx off the syncTree getter didn't build the tree")
         })
 
         it("should hand out a pinned tree that stays on its root when the pin moves", async function () {
-            const { values } = await registerLeafs(2n ** 2n, alice)
-            await gigaBridge.sync()
-
+            const { values } = await registerLeafs(2n ** 2n, alice);
             const rootBeforeUpdate = await gigaBridgeContract.read.gigaRoot()
-            await gigaBridge.pinGigaRoot(rootBeforeUpdate)
+            await gigaBridge.gigaTree.pinned.pinRoot(rootBeforeUpdate)
             const pinnedAtOldRoot = gigaBridge.gigaTree.pinned
-
             // pinned isn't copied on the way out, so re-pinning has to replace the tree, not grow it
-            const { root: rootAfterUpdate } = await gigaBridge.updateLeaf(69n, 2n)
-            await gigaBridge.pinGigaRoot(rootAfterUpdate)
-
+            const { root: rootAfterUpdate } = await gigaBridge.gigaTree.write.updateLeaf(69n, 2n)
+            await gigaBridge.gigaTree.pinned.pinRoot(rootAfterUpdate)
             assert.deepEqual(pinnedAtOldRoot.leaves, values, "a pinned tree handed out earlier moved when the pin did")
             assert.equal(pinnedAtOldRoot.root, rootBeforeUpdate, "a pinned tree handed out earlier no longer matches the root it was pinned to")
         })
