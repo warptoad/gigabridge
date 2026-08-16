@@ -171,6 +171,61 @@ export class GigaBridge {
         }
     }
 
+    /**
+     * Creates a new syncTree. The connected wallet must be its registered updater.
+     * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
+     * @returns {txHash, txReceipt, root, treeSize}
+     */
+    async createNewSyncTree(values: bigint[], indexes: bigint[], txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt, root: bigint, treeSize: bigint }> {
+        await this.init()
+        if (this.walletClient === undefined) throw new Error('No wallet connected')
+        
+        // catch caller mistake early if the provide a leaf that has not existed
+        const areValid = await Promise.all(values.map((value, i) => this.contract!.read.leafHistory([indexes[i], value])))
+        let invalidLeafs:string[] = []
+        for (let index = 0; index < areValid.length; index++) {
+            if(areValid[index] === false) {
+                invalidLeafs.push(`leaf=${toHex(values[index], {size:32})} at index=${toHex(indexes[index], {size:32})}\n`)
+            }
+        }
+        if(invalidLeafs.length > 0) {throw new Error(`Some leaf are never found in leaf history: \n ${invalidLeafs}`)}
+        
+        // make the tx
+        const txHash = await this.contract!.write.createNewSyncTree([values, indexes], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
+        const txReceipt = await this.publicClient.getTransactionReceipt({ hash: txHash })
+        const newRootEvents = parseEventLogs({
+            abi: gigaBridgeAbi,
+            eventName: 'NewRoot',
+            logs: txReceipt.logs,
+        })
+        // when there are gaps, you have multiple insert/insertMany/insertManyRepeated calls, emit-ing NewRoot Events
+        const newRootEvent = newRootEvents[newRootEvents.length - 1]
+        return {
+            txHash, txReceipt,
+            root: newRootEvent.args.root,
+            treeSize: newRootEvent.args.size,
+        }
+    }
+
+    async transferOwnerOfLeafIndex(index: bigint, newOwner: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
+        await this.init()
+        if (this.walletClient === undefined) throw new Error('No wallet connected')
+        const txHash = await this.contract!.write.transferOwnerOfLeafIndex([index, newOwner], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
+        const txReceipt = await this.publicClient.getTransactionReceipt({ hash: txHash })
+        return {
+            txHash, txReceipt,
+        }
+    }
+
+    async setUpdaterOfLeafIndex(index: bigint, newUpdater: Address, txOpts: TxOpts = {}): Promise<{ txHash: Hex, txReceipt: TransactionReceipt }> {
+        await this.init()
+        if (this.walletClient === undefined) throw new Error('No wallet connected')
+        const txHash = await this.contract!.write.setUpdaterOfLeafIndex([index, newUpdater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
+        const txReceipt = await this.publicClient.getTransactionReceipt({ hash: txHash })
+        return {
+            txHash, txReceipt,
+        }
+    }
 
     // {fullNodeMode, blockNumber, attemptFastSizeMatch, syncToRoot, eventChunkSize, storageChunkSize, hasRepeatedLeafs, insertOnlyTree, autoDiscovery}:{ fullNodeMode?: boolean, blockNumber?: bigint, attemptFastSizeMatch?: boolean, syncToRoot?: bigint, eventChunkSize?: bigint, storageChunkSize?: bigint, hasRepeatedLeafs?: boolean, insertOnlyTree?: boolean, autoDiscovery?: boolean | undefined } = {}
     async sync({ fullNodeMode, eventChunkSize, storageChunkSize }: { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
@@ -246,8 +301,7 @@ export class GigaBridge {
             logs: receipt.logs,
         }).filter((event) => event.args.treeId === BigInt(gigaTreeId) && event.args.size > 0n)
         if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a GigaRoot in tx: ${txHash}.`)
-        if (newRootEvents.length > 1) throw new Error(`More then 1 NewRoot events found that contain a GigaRoot in tx: ${txHash}, found ${newRootEvents.length} events.`)
-        const syncRoot = newRootEvents[0].args.root
+        const syncRoot = newRootEvents[newRootEvents.length - 1].args.root
         return await this.pinGigaRoot(syncRoot, { fullNodeMode, eventChunkSize, storageChunkSize })
     }
 
@@ -262,8 +316,7 @@ export class GigaBridge {
             logs: receipt.logs,
         }).filter((event) => event.args.treeId === BigInt(syncTreeId) && event.args.size > 0n)
         if (newRootEvents.length === 0) throw new Error(`no NewRoot events found that contains a SyncRoot in tx: ${txHash}.`)
-        if (newRootEvents.length > 1) throw new Error(`More then 1 NewRoot events found that contain a SyncRoot in tx: ${txHash}, found ${newRootEvents.length} events.`)
-        const syncRoot = newRootEvents[0].args.root
+        const syncRoot = newRootEvents[newRootEvents.length - 1].args.root
         return await this.pinSyncRoot(syncRoot, { eventChunkSize, storageChunkSize })
     }
 

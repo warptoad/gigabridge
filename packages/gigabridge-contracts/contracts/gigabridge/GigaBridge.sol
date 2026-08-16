@@ -27,8 +27,11 @@ contract GigaBridge is
     uint256 public gigaTreeId;
     uint256 public syncTreeId;
 
+    // @TODO also store blockNumber in here not just type
+    // with syncTree store oldest blocknumber of all leafs, so others can consider values expired
     mapping(uint256 => RootType) public rootHistory; // used to check if a sync/gigaRoot has existed in the past
-    mapping(uint256 => mapping(uint256 => bool)) leafHistory; // index => leafValue => bool
+    // @TODO store blocknumber here instead of bool
+    mapping(uint256 => mapping(uint256 => bool)) public leafHistory; // index => leafValue => bool
 
     mapping(uint256 => address) public indexPerOwner;
     mapping(uint256 => address) public indexPerUpdater;
@@ -76,13 +79,6 @@ contract GigaBridge is
 
     function gigaDepth() public view returns (uint256) {
         return gigaTree.treeData.depth;
-    }
-
-    /// @dev skinny/fat-imt have no reset(), but zeroing size+depth is enough: every `sideNodes` slot a
-    /// later insert reads is written by an earlier insert of that same run. treeId is kept so the tree stays initialized.
-    // TODO is this safe? Should we add this to skinny fat?
-    function _resetSyncTree(SkinnyIMTDataEvent storage _syncTree) internal {
-        SkinnyIMTPoseidon2WriteEvent.reset(_syncTree);
     }
 
     function registerNewLeaf(
@@ -146,12 +142,30 @@ contract GigaBridge is
         uint256[] calldata _leafsIndexes
     ) public {
         uint256 _prevLeafIndex = 0;
+        uint256 _runStart = 0; // where the run of consecutive leafs we are gathering starts in _leafsValues
         for (uint256 i = 0; i < _leafsValues.length; i++) {
-            uint256 leafValue = _leafsValues[i];
             uint256 leafIndex = _leafsIndexes[i];
-
-            // pendingLeaf.index bigger? that means there is a gap, fill it with zeros!!
+            uint256 leafValue = _leafsValues[i];
+            // you cant just make something up
+            require(leafHistory[leafIndex][leafValue], "one or more leaf values never existed at provided index.");
+            // detect if there is a gap, insert all leaves before the gap, then fill the gap with zeros with insertManyRepeated
             if (leafIndex > _prevLeafIndex + 1) {
+                // check if there are consecutive leaves to insert before we fill the gap
+                if (i - _runStart > 1) {
+                    SkinnyIMTPoseidon2WriteEvent.insertMany(
+                        syncTree,
+                        _leafsValues[_runStart:i]
+                    );
+                // if it is only one leaf before the gap, do only insert to save gas    
+                } else if (i - _runStart == 1) {
+                    SkinnyIMTPoseidon2WriteEvent.insert(
+                        syncTree,
+                        _leafsValues[_runStart]
+                    );
+                }
+                _runStart = i;
+
+                // fill our gap
                 SkinnyIMTPoseidon2WriteEvent.insertManyRepeated(
                     syncTree,
                     0,
@@ -159,8 +173,19 @@ contract GigaBridge is
                 );
             }
             _prevLeafIndex = leafIndex;
-            // finally we insert our pending leaf
-            SkinnyIMTPoseidon2WriteEvent.insert(syncTree, leafValue);
+        }
+
+        // insert last batch of leaves
+        if (_leafsValues.length - _runStart > 1) {
+            SkinnyIMTPoseidon2WriteEvent.insertMany(
+                syncTree,
+                _leafsValues[_runStart:]
+            );
+        } else if (_leafsValues.length - _runStart == 1) {
+            SkinnyIMTPoseidon2WriteEvent.insert(
+                syncTree,
+                _leafsValues[_runStart]
+            );
         }
 
         uint256 _root = SkinnyIMTPoseidon2Read.root(syncTree);
@@ -169,7 +194,7 @@ contract GigaBridge is
     }
 
     function addSyncRootToHistory(uint256 _root) internal {
-        // this to prevent a gigaRoot becoming a syncRoot
+        // this to prevent a syncRoot becoming a gigaRoot
         if (rootHistory[_root] == RootType.NOT_A_ROOT) {
             rootHistory[_root] = RootType.SYNC_ROOT;
         }
