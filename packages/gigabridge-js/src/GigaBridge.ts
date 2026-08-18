@@ -8,147 +8,16 @@ import { Address, Client, getContract, PublicClient, WalletClient, GetContractRe
 //import {GigaBridgeContractWritableType } from "./types.js";
 import { type GigaBridge$Type } from "../../gigabridge-contracts/artifacts/contracts/gigabridge/GigaBridge.sol/artifacts.js"
 import { GigaBridgeArtifact, GigaBridgeContractTestType } from "../../gigabridge-contracts/src/index.js";
-import { GigaBridgeContractWithWalletClient, GigaBridgeContract, atLeastOneCLient } from "./types.js";
+import { GigaBridgeContractWithWalletClient, GigaBridgeContract, atLeastOneCLient, ConnectedWalletClient, GigaBridgeReadContract, GigaBridgeWriteContract, ViemTxOpts, WriteSyncOpts, RootResult, RegisterLeafResult, EventWriteSyncOpts, TxResult, SyncTreeOpts } from "./types.js";
 import { AnyContract, CachedTree, copyCachedTree, copyTree, TREE_TYPE, Trees } from "@warptoad/skinny-fat-imt-js";
 import type { ReadonlyLeanIMT } from "@warptoad/skinny-fat-imt-js";
 //import { queryEventInChunks } from "./viem-utils.js";
 
 
 import { UnionOmit, WriteContractParameters } from "viem"
-
-export type TxOpts = UnionOmit<
-    WriteContractParameters<GigaBridge$Type["abi"], "updateLeaf">,
-    "abi" | "address" | "functionName" | "args" | "account" | "chain"
->
-export type ConnectedWalletClient = WalletClient & { account: Account }
-
-const GIGA_BRIDGE_DEPLOYMENT_BLOCKS: { [chainId: number]: bigint; } = {
-
-}
-
-export type SyncTreeOpts = { syncToRoot?: bigint, attemptFastSizeMatch?: boolean, updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint }
-// i hate typescript, this the one way to turn the fucking json thing into const and viem needs that otherwise it just forgets what function you can call on gigaBridge.write.
-// the json import widens everything to string/never[], so borrow the literal abi tuple hardhat already generated in artifacts.d.ts
-const gigaBridgeAbi = GigaBridgeArtifact.abi as unknown as GigaBridge$Type["abi"];
-
-type GigaBridgeReadContract = GetContractReturnType<GigaBridge$Type["abi"], PublicClient, Address>;
-type GigaBridgeWriteContract = GetContractReturnType<GigaBridge$Type["abi"], { public: PublicClient, wallet: WalletClient }, Address>;
-
-// TODO default address
-const GIGA_BRIDGE_ADDRESS: Address = "0x0000000000000000000000000000000000000000"
-export const poseidon2IMTHashFunc: LeanIMTHashFunction = (a: bigint, b: bigint) => poseidon2Hash([a, b])
-
-/**
- * `tree`, with `extra` hung off it. Object.create, *not* `{...tree}`: leaves/root/size/depth are getters
- * on LeanIMT.prototype and a spread only copies own properties (`_nodes`, `_hash`), so every one of them
- * comes back undefined. Going through the prototype keeps them working, and it hands out no copy: reads
- * land on `tree` itself. The return type is inferred rather than asserted, so a key you forgot to pass is
- * a type error instead of an undefined at runtime.
- */
-function treeWith<E extends object>(tree: LeanIMT<bigint>, extra: E): ReadonlyLeanIMT & E {
-    return Object.assign(Object.create(tree) as LeanIMT<bigint>, extra)
-}
-
-/** what every write comes back with */
-export type TxResult = { txHash: Hex, txReceipt: TransactionReceipt }
-/** a write that moved a tree, so it also reports where that tree ended up */
-export type RootResult = TxResult & {
-    root: bigint, treeSize: bigint,
-    /** the tree as of `root`. Absent when the write was told to `skipSync`, since nothing built it */
-    tree?: LeanIMT<bigint>
-}
-/** {@link GigaTreeWrite.insertLeaf} on top of that tells you which index it took */
-export type RegisterLeafResult = RootResult & { index: bigint }
-
-/** how a sync reads the chain. `fullNodeMode` off walks events, on reads storage */
-export type SyncOpts = { fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint }
-/** a syncTree only ever exists in events, so there is no storage path to pick */
-export type EventSyncOpts = { eventChunkSize?: bigint, storageChunkSize?: bigint }
-/** `updatePin` moves the pin along with the sync instead of leaving it where it was */
-export type GigaSyncOpts = SyncOpts & { updatePin?: boolean }
-
-/**
- * What a gigaTree write may pass to the sync it runs once its tx has landed. `syncToRoot` and
- * `attemptFastSizeMatch` are the write's own to pick (it knows the root it just made, and whether it
- * inserted or updated), so they are omitted rather than offered.
- * @notice `"a" | "b"`, not `"a" & "b"`: two different string literals intersect to `never`, and
- * `Omit<T, never>` is `T`, so the `&` version omits nothing at all and silently offers both keys.
- */
-export type WriteSyncOpts = Omit<SyncTreeOpts, "syncToRoot" | "attemptFastSizeMatch"> & {
-    /** don't sync at all: the write costs one tx and comes back without a `tree` */
-    skipSync?: boolean
-}
-/** same, minus `fullNodeMode`: a syncTree only ever exists in events, so there is no storage path */
-export type EventWriteSyncOpts = Omit<WriteSyncOpts, "fullNodeMode">
-
-/**
- * @notice every interface below is written in method syntax (`f(): T`) rather than as properties holding
- * function types (`f: () => T`). Both typecheck the same, but tsserver reports a property whose type is a
- * function as `property`, so the IDE gives it the variable icon and drops the doc comment. Method syntax
- * reports as `method`. The GigaBridge impls behind these are private and bound in, so this is the only
- * declaration a caller ever sees, and it has to be the one carrying the docs.
- */
-
-/** the writes that land on the gigaTree. All of them need a connected wallet. */
-export interface GigaTreeWrite {
-    /**
-     * Inserts a new leaf into the gigaTree and registers `owner` as its owner and `updater` as the only
-     * address allowed to change it afterwards.
-     * @param txOpts - the usual viem tx options (`gas`, `nonce`, …), minus `account`/`chain`
-     */
-    insertLeaf(value: bigint, owner: Address, updater: Address, txOpts?: TxOpts, syncOpts?: WriteSyncOpts): Promise<RegisterLeafResult>
-    /**
-     * Overwrites the gigaTree leaf at `index`. The connected wallet must be its registered updater.
-     * @param txOpts - the usual viem tx options (`gas`, `nonce`, …), minus `account`/`chain`
-     */
-    updateLeaf(value: bigint, index: bigint, txOpts?: TxOpts, syncOpts?: WriteSyncOpts): Promise<RootResult>
-    /**
-     * Hands the right to update `index` to `newUpdater`. The connected wallet must be its owner.
-     * @param txOpts - the usual viem tx options (`gas`, `nonce`, …), minus `account`/`chain`
-     */
-    changeLeafUpdater(index: bigint, newUpdater: Address, txOpts?: TxOpts): Promise<TxResult>
-    /**
-     * Hands ownership of `index` to `newOwner`, who can then pick the updater. The connected wallet must
-     * be its current owner.
-     * @param txOpts - the usual viem tx options (`gas`, `nonce`, …), minus `account`/`chain`
-     */
-    transferLeafOwner(index: bigint, newOwner: Address, txOpts?: TxOpts): Promise<TxResult>
-}
-
-/** the writes that build a syncTree. Needs a connected wallet. */
-export interface SyncTreeWrite {
-    /**
-     * Builds a new syncTree out of leaves the gigaTree has held before, zero filling the gaps between the
-     * indexes. Throws before it costs a tx if a value was never at its index. The tree is reset onchain at
-     * the end of the same tx, so pin the root to see it: {@link SyncTreePinned.pinTx}.
-     * @param txOpts - the usual viem tx options (`gas`, `nonce`, …), minus `account`/`chain`
-     */
-    createNew(values: bigint[], indexes: bigint[], txOpts?: TxOpts, syncOpts?: EventWriteSyncOpts): Promise<RootResult>
-}
-
-/** hung off `gigaTree.cache` */
-export interface GigaTreeCache {
-    /** Syncs the gigaTree up to head and returns a copy of what it synced to. */
-    sync(opts?: GigaSyncOpts): Promise<LeanIMT<bigint>>
-}
-
-/** hung off `gigaTree.pinned` */
-export interface GigaTreePinned {
-    /** Syncs the gigaTree up to head and moves the pin there. */
-    sync(opts?: GigaSyncOpts): Promise<LeanIMT<bigint>>
-    /** Rebuilds the gigaTree as it was at `gigaRoot` and pins it there. */
-    pinRoot(gigaRoot: bigint, opts?: SyncOpts): Promise<LeanIMT>
-    /** Same as {@link pinRoot}, but finds the root in the NewRoot events of `txHash`. */
-    pinTx(txHash: Hex, opts?: SyncOpts): Promise<LeanIMT>
-}
-
-/** hung off `syncTree.pinned` */
-export interface SyncTreePinned {
-    /** Walks the events back to the syncTree that had `syncRoot` and pins it. */
-    pinRoot(syncRoot: bigint, opts?: SyncOpts): Promise<LeanIMT>
-    /** Same as {@link pinRoot}, but finds the root in the NewRoot events of `txHash`. */
-    pinTx(txHash: Hex, opts?: EventSyncOpts): Promise<LeanIMT>
-}
+import { GIGA_BRIDGE_ADDRESS, gigaBridgeAbi, poseidon2IMTHashFunc } from "./config.js";
+import { GigaTreeCache, GigaTreePinned, GigaTreeWrite, SyncTreePinned, SyncTreeWrite } from "./interfaces/IGigaBridge.js";
+import { treeWith } from "./utils.js";
 
 export class GigaBridge {
     private publicClient: PublicClient
@@ -238,7 +107,7 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, root, treeSize}
      */
-    private async _updateLeaf(value: bigint, index: bigint, txOpts: TxOpts = {}, { skipSync = false, ...syncOpts }: WriteSyncOpts = {}): Promise<RootResult> {
+    private async _updateLeaf(value: bigint, index: bigint, txOpts: ViemTxOpts = {}, { skipSync = false, ...syncOpts }: WriteSyncOpts = {}): Promise<RootResult> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.updateLeaf([value, index], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -268,7 +137,7 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, index, root, treeSize}
      */
-    private async _registerNewLeaf(value: bigint, owner: Address, updater: Address, txOpts: TxOpts = {}, { skipSync = false, ...syncOpts }: WriteSyncOpts = {}): Promise<RegisterLeafResult> {
+    private async _registerNewLeaf(value: bigint, owner: Address, updater: Address, txOpts: ViemTxOpts = {}, { skipSync = false, ...syncOpts }: WriteSyncOpts = {}): Promise<RegisterLeafResult> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.registerNewLeaf([value, owner, updater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -305,7 +174,7 @@ export class GigaBridge {
      * @param txOpts - the usual viem tx options (`WriteContractParameters`) (`gas`, `nonce`, …), minus `account`/`chain`
      * @returns {txHash, txReceipt, root, treeSize}
      */
-    private async _createNewSyncTree(values: bigint[], indexes: bigint[], txOpts: TxOpts = {}, { skipSync = false, ...syncOpts }: EventWriteSyncOpts = {}): Promise<RootResult> {
+    private async _createNewSyncTree(values: bigint[], indexes: bigint[], txOpts: ViemTxOpts = {}, { skipSync = false, ...syncOpts }: EventWriteSyncOpts = {}): Promise<RootResult> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
 
@@ -341,7 +210,7 @@ export class GigaBridge {
         }
     }
 
-    private async _transferOwnerOfLeafIndex(index: bigint, newOwner: Address, txOpts: TxOpts = {}): Promise<TxResult> {
+    private async _transferOwnerOfLeafIndex(index: bigint, newOwner: Address, txOpts: ViemTxOpts = {}): Promise<TxResult> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.transferOwnerOfLeafIndex([index, newOwner], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -351,7 +220,7 @@ export class GigaBridge {
         }
     }
 
-    private async _setUpdaterOfLeafIndex(index: bigint, newUpdater: Address, txOpts: TxOpts = {}): Promise<TxResult> {
+    private async _setUpdaterOfLeafIndex(index: bigint, newUpdater: Address, txOpts: ViemTxOpts = {}): Promise<TxResult> {
         await this.init()
         if (this.walletClient === undefined) throw new Error('No wallet connected')
         const txHash = await this.contract!.write.setUpdaterOfLeafIndex([index, newUpdater], { account: this.walletClient.account, chain: this.walletClient.chain, ...txOpts })
@@ -383,7 +252,7 @@ export class GigaBridge {
         return pinTookIt ? copyTree(gigaTree.tree, this.hashFunction) : gigaTree.tree
     }
 
-    private async _syncPinnedGigaTree({pinFollowsHead=true, syncToRoot, fullNodeMode = true, eventChunkSize, storageChunkSize }: {pinFollowsHead?:boolean, syncToRoot?: bigint, updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
+    private async _syncPinnedGigaTree({ pinFollowsHead = true, syncToRoot, fullNodeMode = true, eventChunkSize, storageChunkSize }: { pinFollowsHead?: boolean, syncToRoot?: bigint, updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint } = {}) {
         // moving the pin on purpose, same as _pinGigaRoot, so it stops trailing every sync from here on
         this.pinFollowsHead.gigaTree = pinFollowsHead
         return await this._syncGigaTree({ syncToRoot, updatePin: true, fullNodeMode, eventChunkSize, storageChunkSize, attemptFastSizeMatch: false })
