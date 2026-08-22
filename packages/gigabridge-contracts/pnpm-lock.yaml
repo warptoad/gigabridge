@@ -27,8 +27,8 @@ importers:
         specifier: 0.0.11
         version: 0.0.11
       '@warptoad/skinny-fat-imt-js':
-        specifier: ^0.0.2
-        version: 0.0.2(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))
+        specifier: ^0.0.6
+        version: 0.0.6(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))
       '@warptoad/skinny-imt.sol':
         specifier: 0.0.11
         version: 0.0.11
@@ -1026,8 +1026,8 @@ packages:
   '@warptoad/fat-imt.sol@0.0.11':
     resolution: {integrity: sha512-3xQbu2rnH3XVClAqoWznjezTVUy3rab2jeKdhqQxetoMPxfCv/heBVILYlzCL23Zw2LHIuqahYZ/zLo+nES/cg==}
 
-  '@warptoad/skinny-fat-imt-js@0.0.2':
-    resolution: {integrity: sha512-sH/MI4s03/OrNVqdxN4JJz1+nN4IIn5CsYdxz/H2R1NfkPgqfZ8pvdhwrFLA5J77PT8I/gDf9xv8/FHFve5R5Q==}
+  '@warptoad/skinny-fat-imt-js@0.0.6':
+    resolution: {integrity: sha512-jvtclk2t8Uf594uT2DHOyRFsLxRL3tXz7PJfHUCiNWigoPPNhQUfN9U2lfIohOdBBA3Eqr2kmMVNUeR1rz3MZw==}
     engines: {node: '>=22'}
     peerDependencies:
       viem: ^2.47.6
@@ -1483,8 +1483,8 @@ packages:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
     engines: {node: '>=14'}
 
-  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/467ffd422ca01fed5797a4c766a1e4e3a5327902:
-    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/467ffd422ca01fed5797a4c766a1e4e3a5327902}
+  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/680ee6692649dcc7c617e05b2144932618264a83:
+    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/680ee6692649dcc7c617e05b2144932618264a83}
     version: 1.16.2
 
   form-data@2.5.6:
@@ -3751,7 +3751,7 @@ snapshots:
       poseidon-solidity: 0.0.5
       poseidon2-evm: 2.0.0
 
-  '@warptoad/skinny-fat-imt-js@0.0.2(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))':
+  '@warptoad/skinny-fat-imt-js@0.0.6(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))':
     dependencies:
       '@zk-kit/lean-imt': 2.2.5
       '@zkpassport/poseidon2': 0.6.2
@@ -3867,7 +3867,7 @@ snapshots:
     dependencies:
       '@openzeppelin/contracts': 5.4.0
       '@openzeppelin/merkle-tree': 1.0.8
-      forge-std: https://codeload.github.com/foundry-rs/forge-std/tar.gz/467ffd422ca01fed5797a4c766a1e4e3a5327902
+      forge-std: https://codeload.github.com/foundry-rs/forge-std/tar.gz/680ee6692649dcc7c617e05b2144932618264a83
     transitivePeerDependencies:
       - supports-color
 
@@ -4234,7 +4234,7 @@ snapshots:
       cross-spawn: 7.0.6
       signal-exit: 4.1.0
 
-  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/467ffd422ca01fed5797a4c766a1e4e3a5327902: {}
+  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/680ee6692649dcc7c617e05b2144932618264a83: {}
 
   form-data@2.5.6:
     dependencies:

@@ -4,20 +4,24 @@ yay!
 
 ## install
 ```shell
-yarn install
+pnpm install
 ```
 
-## compile poseidon2 huff
+## compile and deploy  
+compile and create creat2 artifacts  
 ```shell
-huffc node_modules/poseidon2-evm/src/huff/Poseidon2.huff --artifacts -o ./huff_artifacts/
+pnpm hardhat gen-artifact-create2 --network sepolia;
 ```
 
-
-## compile aztec
+mine salt (takes 10 min)  
 ```shell
-cd contracts/adapters/aztec/aztec_adapter_l2
-aztec-nargo compile;
-aztec-postprocess-contract
-aztec codegen -o target/artifacts target;
-cd ../../../..
+pnpm hardhat mine-create2 --zeros 2 --suffix 919A
 ```
+
+deploy and verify  
+```shell
+pnpm hardhat deploy-create2 --network sepolia;
+pnpm hardhat verify-create2 --network sepolia;
+```
+
+TODO here and in skinny-fat-imt-js, mare create2-salts.json do {[contractName]:{[address]:salt}}

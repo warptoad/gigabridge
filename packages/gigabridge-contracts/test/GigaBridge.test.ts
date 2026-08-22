@@ -10,8 +10,9 @@ import Poseidon2HuffArtifacts from "../huff_artifacts/NODE_MODULES/POSEIDON2-EVM
 
 import { Hash } from "viem";
 //TODO import this from index
-import { ConnectedWalletClient, GigaBridge } from "../../gigabridge-js/src/GigaBridge.js"
+import { GigaBridge } from "../../gigabridge-js/src/GigaBridge.js"
 import { FatImtContractName, FatImtReadContractName, GigaBridgeContractName, GigaBridgeContractTestType, SkinnyImtContractName, SkinnyImtReadContractName } from "../src/index.js";
+import { ConnectedWalletClient } from "packages/gigabridge-js/src/types.js";
 
 /** IGigaBridge.RootType. `rootHistory` is a mapping, so a root that was never seen reads as NOT_A_ROOT. */
 const RootType = { NOT_A_ROOT: 0, GIGA_ROOT: 1, SYNC_ROOT: 2 } as const
@@ -42,6 +43,7 @@ describe("gigaBridge", async function () {
         });
         [alice, bob] = await viem.getWalletClients() as ConnectedWalletClient[]
         gigaBridge = new GigaBridge(publicClient, alice, gigaBridgeContract.address)
+      
     })
 
     /** fills the gigaTree with `amount` leafs, valued 0..amount, and returns what went in where */

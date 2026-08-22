@@ -28,7 +28,7 @@
     "@aztec/noir-contracts.js": "2.0.3",
     "@aztec/pxe": "2.0.3",
     "@warptoad/fat-imt.sol": "0.0.11",
-    "@warptoad/skinny-fat-imt-js": "^0.0.2",
+    "@warptoad/skinny-fat-imt-js": "^0.0.6",
     "@warptoad/skinny-imt.sol": "0.0.11",
     "@zk-kit/lean-imt": "^2.2.5",
     "@zkpassport/poseidon2": "^0.6.2",

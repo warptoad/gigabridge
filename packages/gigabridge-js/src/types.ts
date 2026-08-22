@@ -22,6 +22,7 @@ export type ViemTxOpts = UnionOmit<
     WriteContractParameters<GigaBridge$Type["abi"], "updateLeaf">,
     "abi" | "address" | "functionName" | "args" | "account" | "chain"
 >
+// TODO is this a good requirement to ask other user of gigaBridge to do?
 export type ConnectedWalletClient = WalletClient & { account: Account }
 
 export type SyncTreeOpts = { syncToRoot?: bigint, attemptFastSizeMatch?: boolean, updatePin?: boolean, fullNodeMode?: boolean, eventChunkSize?: bigint, storageChunkSize?: bigint }

@@ -2,7 +2,14 @@ import type { HardhatUserConfig } from "hardhat/config";
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable } from "hardhat/config";
 import hardhatIgnitionViem from "@nomicfoundation/hardhat-ignition-viem";
+
+import deployCreate2Task from "./tasks/deployCreate2.js";
+import genArtifactCreate2Task from "./tasks/genArtifactCreate2.js";
+import mineCreate2Task from "./tasks/mineCreate2.js";
+import verifyCreate2Task from "./tasks/verifyCreate2.js";
+
 const config: HardhatUserConfig = {
+  tasks: [mineCreate2Task, genArtifactCreate2Task, deployCreate2Task, verifyCreate2Task],
   plugins: [
     hardhatToolboxViemPlugin,
     hardhatIgnitionViem,
