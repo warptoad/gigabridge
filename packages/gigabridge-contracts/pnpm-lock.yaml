@@ -27,8 +27,8 @@ importers:
         specifier: 0.0.11
         version: 0.0.11
       '@warptoad/skinny-fat-imt-js':
-        specifier: ^0.0.6
-        version: 0.0.6(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))
+        specifier: ^0.0.7
+        version: 0.0.7(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))
       '@warptoad/skinny-imt.sol':
         specifier: 0.0.11
         version: 0.0.11
@@ -1026,8 +1026,8 @@ packages:
   '@warptoad/fat-imt.sol@0.0.11':
     resolution: {integrity: sha512-3xQbu2rnH3XVClAqoWznjezTVUy3rab2jeKdhqQxetoMPxfCv/heBVILYlzCL23Zw2LHIuqahYZ/zLo+nES/cg==}
 
-  '@warptoad/skinny-fat-imt-js@0.0.6':
-    resolution: {integrity: sha512-jvtclk2t8Uf594uT2DHOyRFsLxRL3tXz7PJfHUCiNWigoPPNhQUfN9U2lfIohOdBBA3Eqr2kmMVNUeR1rz3MZw==}
+  '@warptoad/skinny-fat-imt-js@0.0.7':
+    resolution: {integrity: sha512-hl7bWh3G0jPKpAO0tXTuuZ5R+TLzrHk1xtJ915IrBEGsB6Ibg5t78+H8qR2xNeWsF2p59LxegStht5JJvCmDEA==}
     engines: {node: '>=22'}
     peerDependencies:
       viem: ^2.47.6
@@ -3751,7 +3751,7 @@ snapshots:
       poseidon-solidity: 0.0.5
       poseidon2-evm: 2.0.0
 
-  '@warptoad/skinny-fat-imt-js@0.0.6(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))':
+  '@warptoad/skinny-fat-imt-js@0.0.7(viem@2.55.15(typescript@5.9.3)(zod@3.25.76))':
     dependencies:
       '@zk-kit/lean-imt': 2.2.5
       '@zkpassport/poseidon2': 0.6.2

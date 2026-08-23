@@ -99,27 +99,80 @@ export function publishedLibraries(): Promise<Map<string, PublishedLibrary>> {
     return (libraries ??= readPublishedLibraries());
 }
 
+/** Subpaths a package can export its create2 files under. `@warptoad/skinny-fat-imt-js` does. */
+const SALTS_EXPORT = "create2/evm-artifacts/create2-salts.json";
+const ARTIFACTS_EXPORT = "create2/evm-artifacts";
+
+/** What a specifier maps to, or undefined when it does not resolve at all. */
+function exported(specifier: string): URL | undefined {
+    try {
+        return new URL(import.meta.resolve(specifier));
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Every place a package might keep one of its create2 files, best first: the subpath it exports,
+ * then the layout next to its `package.json`.
+ *
+ * Which of those is real has to be settled by looking on disk rather than by whether the specifier
+ * resolved. A package with an export map that omits the subpath fails resolution and is easy; a
+ * package with no export map at all resolves *any* subpath, so the export-shaped URL comes back
+ * pointing at nothing — and that is exactly the package the layout is there to cover.
+ *
+ * Going through `package.json` for the layout means finding the files wherever the installer put
+ * them, pnpm's content-addressed store included, rather than assuming a shape for node_modules.
+ */
+function candidates(packageName: string, subpath: string, file: string): URL[] {
+    const found: URL[] = [];
+    const byExport = exported(`${packageName}/${subpath}`);
+    if (byExport !== undefined) found.push(byExport);
+
+    const manifest = exported(`${packageName}/package.json`);
+    if (manifest !== undefined) found.push(new URL(file, new URL(`./${DEFAULT_OUT_DIR}/`, manifest)));
+
+    return found;
+}
+
+/** The contents of the first candidate that exists. Anything but "not there" is a real failure. */
+async function readFirst(urls: URL[], what: string): Promise<string> {
+    for (const url of urls) {
+        try {
+            return await readFile(url, "utf8");
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+    }
+    throw new Error(
+        `could not find ${what} — looked at ${urls.length === 0 ? "nowhere, since nothing resolved" : urls.join(", ")}. ` +
+        "See LIBRARY_PACKAGES in create2Config.ts for what a package has to look like.",
+    );
+}
+
 async function readPublishedLibraries(): Promise<Map<string, PublishedLibrary>> {
     const found = new Map<string, PublishedLibrary>();
 
     for (const packageName of LIBRARY_PACKAGES) {
-        // Resolved through the package's own `package.json` export, so this finds the files wherever
-        // the installer put them — pnpm's content-addressed store included — rather than assuming a
-        // shape for node_modules. The layout inside is this project's own, named by the same helpers
-        // that write it, so a directory produced here reads back without a second convention.
-        const dir = new URL(`./${DEFAULT_OUT_DIR}/`, import.meta.resolve(`${packageName}/package.json`));
+        // The export map first where there is one, since that is the part of a package that is a
+        // promise; the directory underneath is internal and can be rearranged. The layout still
+        // earns its place as a fallback — it costs nothing and covers a package that only ships the
+        // files, this project's own `create2-artifacts/` among them.
         const salts: Record<string, [Hex, Address]> = JSON.parse(
-            await readFile(new URL(saltsPathFor("."), dir), "utf8"),
+            await readFirst(
+                candidates(packageName, SALTS_EXPORT, saltsPathFor(".")),
+                `${packageName}'s create2-salts.json`,
+            ),
         );
 
         for (const [name, [salt, address]] of Object.entries(salts)) {
             let reading: Promise<Create2Artifact> | undefined;
-            const url = new URL(artifactPathFor(".", name), dir);
+            const urls = candidates(packageName, `${ARTIFACTS_EXPORT}/${name}`, artifactPathFor(".", name));
             found.set(name, {
                 package: packageName,
                 salt,
                 address,
-                artifact: () => (reading ??= readPublishedArtifact(url, packageName, name, salt, address)),
+                artifact: () => (reading ??= readPublishedArtifact(urls, packageName, name, salt, address)),
             });
         }
     }
@@ -128,13 +181,13 @@ async function readPublishedLibraries(): Promise<Map<string, PublishedLibrary>> 
 }
 
 async function readPublishedArtifact(
-    url: URL,
+    urls: URL[],
     packageName: string,
     name: string,
     salt: Hex,
     address: Address,
 ): Promise<Create2Artifact> {
-    const artifact = JSON.parse(await readFile(url, "utf8")) as Create2Artifact;
+    const artifact = JSON.parse(await readFirst(urls, `${packageName}'s ${name} artifact`)) as Create2Artifact;
 
     // The published salt and the published bytes have to agree, or the address everyone links
     // against is not where those bytes land. Cheap to check, and there is no recovering from it

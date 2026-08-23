@@ -8,9 +8,9 @@
 // the low 4, so two workers colliding is as likely as two random 28-byte values matching.
 
 import { parentPort, workerData } from "node:worker_threads";
-import { keccak256, toBytes, toHex } from "viem";
+import { checksumAddress, keccak256, toBytes, toHex } from "viem";
 
-const { factory, initCodeHash, pattern, reportEvery } = workerData;
+const { factory, initCodeHash, pattern, casePattern, reportEvery } = workerData;
 
 // keccak256(0xff ‖ factory ‖ salt ‖ initCodeHash), built once and mutated in place — no hex
 // strings in the loop, which is most of the speed.
@@ -50,6 +50,30 @@ function matchesPattern(hash) {
     return true;
 }
 
+// The letters `--match-case` asked for, as [position, character] pairs. Empty unless the flag was
+// passed, and then this is the only thing that costs anything: EIP-55 case is a second keccak, over
+// the address string this time, so it is worth far more than the nibble test it follows.
+const caseChecks = [];
+for (let i = 0; i < casePattern.length; i++) {
+    if (casePattern[i] !== ".") caseChecks.push([i, casePattern[i]]);
+}
+
+/**
+ * Whether the address displays the letters asked for in the case asked for.
+ *
+ * Only ever reached by a candidate that already matched on value, which is one in 16^n — so the
+ * extra hashing here never shows up in the attempt rate, and the case constraint costs a factor of
+ * two in attempts rather than anything per attempt.
+ */
+function matchesCase(hash) {
+    const address = checksumAddress(toHex(hash.subarray(12, 32)));
+    for (let j = 0; j < caseChecks.length; j++) {
+        const [i, want] = caseChecks[j];
+        if (address[2 + i] !== want) return false;
+    }
+    return true;
+}
+
 // The counter only covers 2^32 salts, which a pattern fixing 9 hex characters or more expects to
 // run through several times over, so exhausting it just means taking a fresh 28-byte seed and
 // starting again. Nothing but a hit stops this loop; the main thread terminates the ones it does
@@ -58,7 +82,8 @@ for (;;) {
     crypto.getRandomValues(buffer.subarray(21, 49));
     for (let attempt = 0; attempt <= 0xffffffff; attempt++) {
         counter.setUint32(0, attempt);
-        if (matchesPattern(keccak256(buffer, "bytes"))) {
+        const hash = keccak256(buffer, "bytes");
+        if (matchesPattern(hash) && (caseChecks.length === 0 || matchesCase(hash))) {
             parentPort.postMessage({ salt: toHex(buffer.subarray(21, 53)) });
             process.exit(0);
         }

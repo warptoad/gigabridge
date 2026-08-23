@@ -65,6 +65,14 @@ const config: HardhatUserConfig = {
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
   },
+  // Points hardhat-verify at the keystore entry, so both `npx hardhat verify` and
+  // `scripts/deployToSepolia.ts` read the same key. Without this the default is an empty string.
+  //   npx hardhat keystore set ETHERSCAN_API_KEY
+  verify: {
+    etherscan: {
+      apiKey: configVariable("ETHERSCAN_API_KEY"),
+    },
+  },
   paths: {
     sources: [
       "./contracts",

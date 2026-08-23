@@ -32,8 +32,13 @@ export const CONTRACTS = [
  * whole point of the exercise: everyone linking that library ends up pointing at the same address.
  * Empty this list and every library goes back to being built and mined from this project's compile.
  *
- * A package qualifies by exporting `./package.json` — that is what locates it, so nothing here
- * depends on the shape of node_modules — and by having this next to it:
+ * A package qualifies either by exporting the two subpaths — which is the supported way, since an
+ * export map is the part of a package that is a promise:
+ *
+ *     "./create2/evm-artifacts/create2-salts.json": "./create2-artifacts/create2-salts.json",
+ *     "./create2/evm-artifacts/*":                  "./create2-artifacts/*.create2.json"
+ *
+ * or, failing that, by exporting `./package.json` and having the files laid out next to it:
  *
  *     <package root>/
  *       package.json
@@ -41,10 +46,10 @@ export const CONTRACTS = [
  *         create2-salts.json          { "<Contract>": ["<32-byte salt>", "<address>"] }
  *         <Contract>.create2.json     one `Create2Artifact`, i.e. `makeCreate2()` serialized
  *
- * Which is exactly what `mine-create2` and `gen-artifact-create2` write into `--out-dir` here — the
- * directory is {@link DEFAULT_OUT_DIR} and both file names come from `create2Utils.ts`, which
+ * That layout is exactly what `mine-create2` and `gen-artifact-create2` write into `--out-dir` here
+ * — the directory is {@link DEFAULT_OUT_DIR} and both file names come from `create2Utils.ts`, which
  * builds them with the same helpers when reading a package back. So this project's own
- * `create2-artifacts/` is already publishable as one of these.
+ * `create2-artifacts/` is already publishable as one of these, export map or not.
  *
  * The salts file is the index: a package offers exactly the libraries it lists there, and an
  * artifact without an entry is ignored. Both files are needed — the artifact carries the bytes and

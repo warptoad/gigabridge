@@ -38,8 +38,6 @@ interface IGigaBridge {
 
     // state
     function gigaRoot() external view returns (uint256);
-    function nextGigaIndex() external view returns (uint256);
-    function gigaDepth() external view returns (uint256);
     // function syncTreesData(uint256 _syncTreeIndex) external view returns (uint256 nextLeafIndex, uint256 nextPendingLeafsIndex, uint256 pendingLeafIndexLength, uint256 creationBlock);
     function indexPerOwner(uint256 _index) external view returns (address);
     function indexPerUpdater(uint256 _index) external view returns (address);

@@ -72,15 +72,6 @@ contract GigaBridge is
         return FatIMTPoseidon2Read.root(gigaTree.treeData);
     }
 
-    function nextGigaIndex() public view returns (uint256) {
-        // TODO this guy is obv not skinny, maybe rename that to treeData?
-        return gigaTree.treeData.size;
-    }
-
-    function gigaDepth() public view returns (uint256) {
-        return gigaTree.treeData.depth;
-    }
-
     function registerNewLeaf(
         uint256 _value,
         address _owner,

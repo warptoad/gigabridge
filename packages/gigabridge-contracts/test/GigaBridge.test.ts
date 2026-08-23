@@ -82,7 +82,7 @@ describe("gigaBridge", async function () {
                 gas: {
                     createSyncTree: (await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash })).gasUsed,
                     registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
-                    gigaDepth: await gigaBridgeContract.read.gigaDepth()
+                    gigaDepth: gigaBridge.gigaTree.cache.depth
                 }
             })
         })
@@ -106,7 +106,7 @@ describe("gigaBridge", async function () {
                 gas: {
                     createSyncTree: (await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash })).gasUsed,
                     registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
-                    gigaDepth: await gigaBridgeContract.read.gigaDepth()
+                    gigaDepth: gigaBridge.gigaTree.cache.depth
                 }
             })
         })
@@ -130,7 +130,7 @@ describe("gigaBridge", async function () {
                 gas: {
                     createSyncTree: (await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash })).gasUsed,
                     registerLeaf: (await publicClient.getTransactionReceipt({ hash: registerLeafTx as Hash })).gasUsed,
-                    gigaDepth: await gigaBridgeContract.read.gigaDepth()
+                    gigaDepth: gigaBridge.gigaTree.cache.depth
                 }
             })
         })
@@ -178,7 +178,7 @@ describe("gigaBridge", async function () {
                 gas: {
                     updateLeaf: (await publicClient.getTransactionReceipt({ hash: updateLeafTx })).gasUsed,
                     registerNewLeaf: (await publicClient.getTransactionReceipt({ hash: registerNewLeafTx })).gasUsed,
-                    gigaDepth: await gigaBridgeContract.read.gigaDepth()
+                    gigaDepth: gigaBridge.gigaTree.cache.depth
                 }
             })
         })
