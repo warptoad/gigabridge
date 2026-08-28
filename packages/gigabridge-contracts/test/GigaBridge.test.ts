@@ -43,7 +43,7 @@ describe("gigaBridge", async function () {
         });
         [alice, bob] = await viem.getWalletClients() as ConnectedWalletClient[]
         gigaBridge = new GigaBridge(publicClient, alice, gigaBridgeContract.address)
-      
+
     })
 
     /** fills the gigaTree with `amount` leafs, valued 0..amount, and returns what went in where */
@@ -76,8 +76,8 @@ describe("gigaBridge", async function () {
             // the gaps between the leaf indexes are filled with zeros onchain, so js has to see them too
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
             assert.equal(gigaBridge.syncTree.pinned.root, syncRoot, "reconstructed sync tree root doesn't match the one emitted onchain")
-            const isRoot = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
-            assert(isRoot !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+            const rootData = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
+            assert(rootData[0] !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
             console.log({
                 gas: {
                     createSyncTree: (await publicClient.getTransactionReceipt({ hash: createSyncTreeTxHash })).gasUsed,
@@ -99,8 +99,8 @@ describe("gigaBridge", async function () {
 
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, [0n, 1n, 0n, 0n, 4n, 5n, 0n, 7n], "sync tree wasn't zero filled the way the contract filled it")
             assert.equal(gigaBridge.syncTree.pinned.root, syncRoot, "reconstructed sync tree root doesn't match the one emitted onchain")
-            const isRoot = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
-            assert(isRoot !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+            const rootData = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
+            assert(rootData[0] !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
 
             console.log({
                 gas: {
@@ -123,8 +123,8 @@ describe("gigaBridge", async function () {
             // every index is taken here, so there is nothing to zero fill and the sync tree is the giga tree
             assert.deepEqual(gigaBridge.syncTree.pinned.leaves, values, "sync tree doesn't hold the leafs it was built with")
             assert.equal(gigaBridge.syncTree.pinned.root, syncRoot, "reconstructed sync tree root doesn't match the one emitted onchain")
-            const isRoot = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
-            assert(isRoot !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
+            const rootData = await gigaBridgeContract.read.rootHistory([gigaBridge.syncTree.pinned.root as bigint])
+            assert(rootData[0] !== RootType.NOT_A_ROOT, ("built sync tree wrong, reconstructed tree root doesn't exist onchain"))
 
             console.log({
                 gas: {

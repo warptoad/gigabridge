@@ -30,6 +30,12 @@ interface IGigaBridge {
         SYNC_ROOT
     }
 
+    struct RootData {
+        RootType rootType;
+        uint256 treeSize;
+        uint256 treeDepth;
+    }
+
     // functions
     function registerNewLeaf(uint256 _value, address _owner, address _updater) external returns (uint256 _root, uint256 _index);
     function updateLeaf(uint256 _value, uint256 _index) external returns (uint256 _root);
@@ -41,5 +47,5 @@ interface IGigaBridge {
     // function syncTreesData(uint256 _syncTreeIndex) external view returns (uint256 nextLeafIndex, uint256 nextPendingLeafsIndex, uint256 pendingLeafIndexLength, uint256 creationBlock);
     function indexPerOwner(uint256 _index) external view returns (address);
     function indexPerUpdater(uint256 _index) external view returns (address);
-    function rootHistory(uint256 _root) external view returns (RootType);
+    // function rootHistory(uint256 _root) external view returns (RootData storage);
 }
